@@ -1,180 +1,293 @@
 # 🛡️ A.L.E.X (Advanced Logic Evaluation X-ray)
 
-> **Status:** 🚥 Ready for Deployment | **Engine:** Multi-Agent Reasoning (Google ADK)
+> **Status:** ✅ Production Ready | **Engine:** Multi-Agent Reasoning (Google ADK) | **Model:** gemini-2.5-pro
 
-**A.L.E.X** é um framework de análise diagnóstica profunda, projetado para realizar a "radiografia" técnica e lógica de sistemas complexos. Diferente de linters tradicionais, o A.L.E.X opera como um **Micro-serviço de Inteligência**, aplicando heurísticas de avaliação em múltiplas camadas para identificar falhas estruturais, vulnerabilidades de design e oportunidades de otimização arquitetural antes do commit.
+**A.L.E.X** é um framework de análise diagnóstica profunda que realiza a "radiografia" técnica e lógica de sistemas complexos. Diferente de linters tradicionais, o A.L.E.X opera como um **Micro-serviço de Inteligência**, aplicando heurísticas de avaliação em múltiplas camadas para identificar falhas estruturais, vulnerabilidades de segurança e oportunidades de otimização arquitetural.
+
+O próprio código do A.L.E.X é validado continuamente por seus agentes (`alex review`) — cada melhoria de segurança e qualidade neste repositório foi identificada e corrigida pelo Conselho de Agentes que ele hospeda.
 
 ---
 
 ## 🏛️ Arquitetura Multi-Agente (The Council of Agents)
 
-O A.L.E.X opera sob o padrão de **Delegação**, orquestrando um conselho de agentes especialistas coordenados via **Google ADK**.
+O A.L.E.X opera sob o padrão de **Delegação Paralela**, orquestrando um conselho de agentes especialistas coordenados via **Google ADK**.
 
-### 👑 Agente Orquestrador (The Architect)
-- **Papel:** O cérebro central e ponto de entrada da API.
-- **Responsabilidade:** 
-    - Identificar arquivos e stacks envolvidas no `diff`.
-    - Delegar sub-tarefas em paralelo para os especialistas.
-    - Consolidar feedbacks conflitantes em um **veredito final único**.
+```
+                    ┌─────────────────────┐
+                    │  ReviewOrchestrator │  ← Ponto de entrada (CLI / API)
+                    └──────────┬──────────┘
+                               │ ParallelAgent
+          ┌────────────────────┼─────────────────────┐
+          ▼                    ▼                     ▼                    ▼
+  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+  │  Security    │   │  Clean Coder │   │  SRE Agent   │   │  Business    │
+  │  Auditor     │   │              │   │              │   │  Proxy       │
+  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘
+         └──────────────────┴──────────────────┴──────────────────┘
+                                       │ Cross-Review (Reflexão)
+                    ┌──────────────────┼───────────────────┐
+                    ▼                                       ▼
+           ┌─────────────────┐                  ┌─────────────────┐
+           │ Security        │                  │ Performance     │
+           │ Reviewer        │                  │ Reviewer        │
+           └─────────────────┘                  └─────────────────┘
+                                       │
+                    ┌──────────────────▼──────────────────┐
+                    │    architect-consolidator           │
+                    │  (FinalReport: PASS / WARN / FAIL)  │
+                    └─────────────────────────────────────┘
+```
 
-### 🛡️ Agente de Segurança (The Security Auditor)
-- **Foco:** Proteção e conformidade (OWASP Top 10).
-- **Tooling:** RAG específico focado em vulnerabilidades de stack (.NET/React).
+### 👑 The Architect (Orquestrador)
+- Extrai metadados do diff/sourceCode via parser linear O(n)
+- Delega em paralelo para os 4 especialistas
+- Consolida feedbacks conflitantes em um **veredito final único**
 
-### 🛠️ Agente de Qualidade e Design (The Clean Coder)
-- **Foco:** Manutenibilidade (S.O.L.I.D, DRY, Complexidade Ciclomática).
-- **Métrica:** Atua como um "Sonar Humanoide" focado em eliminar *Code Smells*.
+### 🛡️ Security Auditor
+- OWASP Top 10, Path Traversal, ReDoS, Timing Attacks
+- Detecção de vazamento de credenciais e Data Leakage
 
-### 🚀 Agente de Performance e Infra (The SRE Agent)
-- **Foco:** Eficiência operacional (N+1 queries, Memory Leaks, React Re-renders).
+### 🛠️ Clean Coder
+- S.O.L.I.D, DRY, Complexidade Ciclomática
+- No-Any Policy, Contract-First Development
 
-### 🧠 Agente de Contexto (The Business Proxy)
-- **Papel:** A Memória Viva do projeto.
-- **Responsabilidade:** Validar se a alteração fere regras de domínio consumindo READMEs e Docs de Arquitetura via **RAG Dinâmico**.
+### 🚀 SRE Agent
+- Memory Leaks, OOM, Event Loop blocking
+- Resiliência: timeouts, retry, rate limiting
+
+### 🧠 Business Proxy
+- Valida conformidade com regras de domínio via RAG dinâmico
+- Consome READMEs e documentação de arquitetura local
 
 ---
 
-## 🛠️ Stack Tecnológica (The X-ray Engine)
+## 🛠️ Stack Tecnológica
 
-| Componente             | Tecnologia              | Detalhes                                                               |
-| :---                   | :---                    | :---                                                                   |
-| **Language**           | **TypeScript**          | Tipagem estrita para contratos de IA.                                  |
-| **Framework**          | **Google ADK**          | `@google/adk` para core, `@google/adk-devtools` para CLI/Web.          |
-| **API Framework**      | **Fastify / Express**   | Exposição do serviço de forma agnóstico.                               |
-| **Reasoning**          | **Gemini 2.5 Pro**      | Multimodalidade e estabilidade em requisições paralelas.               |
-| **Intelligence**       | **Vector Search**       | RAG para padrões de arquitetura e segurança.                           |
+| Componente        | Tecnologia           | Detalhes                                                |
+| :---              | :---                 | :---                                                    |
+| **Language**      | **TypeScript**       | Tipagem estrita; No-Any Policy enforced                 |
+| **Framework**     | **Google ADK**       | `@google/adk` + `@google/adk-devtools`                  |
+| **API**           | **Express 5**        | Rate limiting, Auth Bearer, Zod validation              |
+| **CLI**           | **Commander.js**     | `alex review` e `alex analyze <file>`                   |
+| **Reasoning**     | **Gemini 2.5 Pro**   | Configurável via `ALEX_MODEL` no `.env`                 |
+| **Contracts**     | **Zod**              | Schemas runtime para entrada e saída dos agentes        |
 
 ---
 
 ## 📋 Pré-requisitos
 
-Para garantir o funcionamento pleno das ferramentas de streaming e orquestração do ADK:
-
-- **Node.js:** `^24.13.0` ou superior.
-- **NPM:** `^11.8.0` ou superior.
-- **Google Cloud SDK:** Configurado (opcional para Vertex AI).
+- **Node.js:** `^24.13.0` ou superior
+- **NPM:** `^11.8.0` ou superior
+- **Git:** Instalado e em `PATH` (necessário para `alex review`)
 
 > [!WARNING]
-> **Requisito de Modelo LLM (Rate Limits):** Devido à natureza paralela do *"Council of Agents"*, recomenda-se estritamente a utilização do modelo **gemini-2.5-pro** como requisito mínimo e fallback padrão. O modelo *gemini-2.0-flash*, mesmo em tiers mais altos, costuma apresentar falhas (HTTP 429) por exaustão de cota de requisições simultâneas ao orquestrar a delegação de tarefas do A.L.E.X.
+> **Rate Limits:** Devido à natureza paralela do Council of Agents, use **gemini-2.5-pro** como mínimo. O `gemini-2.0-flash` frequentemente apresenta HTTP 429 por exaustão de cota de requisições simultâneas.
 
 ---
 
-## 🚀 Quick Start (Setup)
+## 🚀 Quick Start
 
-1.  **Instalação de Dependências:**
+### 1. Instalação de Dependências
+
 ```bash
-npm install @google/adk
-npm install -D @google/adk-devtools
+npm install
 ```
 
-2.  **Configuração de Ambiente:**
-Crie um arquivo `.env` na raiz do projeto:
+### 2. Configuração de Ambiente
+
+Crie um arquivo `.env` na raiz (use `.env.example` como base):
+
 ```bash
-GEMINI_API_KEY="SUA_CHAVE_AQUI"
-# Ou para Vertex AI:
-# GOOGLE_APPLICATION_CREDENTIALS="path/to/credentials.json"
+# Obrigatório
+GEMINI_API_KEY="sua_chave_aqui"
+
+# Opcional — padrão: gemini-2.5-pro
+ALEX_MODEL="gemini-2.5-pro"
+
+# Obrigatório para a API REST (bloqueia acesso se ausente)
+API_BEARER_TOKEN="sua_senha_secreta"
+
+# Para deploy em Cloud Run/Kubernetes (CIDR da rede interna)
+# TRUSTED_PROXY_CIDR="10.0.0.0/8"
 ```
 
----
+### 3. Compilar
 
-## 💻 Execução & Debugging
-
-O A.L.E.X pode ser operado de três formas principais:
-
-### 1. CLI Mode (Interactive)
-Ideal para testes rápidos de diagnóstico via terminal.
 ```bash
-npx adk run src/agent.ts
+npx tsc
 ```
 
-### 2. Web UI Mode (Trace & Debug)
-Abre uma interface local (http://localhost:8000) para visualizar o fluxo de pensamento (**Trace**) e os eventos dos agentes.
+---
+
+## 💻 Modos de Uso
+
+### CLI — `alex review`
+Analisa as modificações locais via `git diff HEAD`. Ideal para uso antes do commit.
+
 ```bash
-npx adk web
+# Com o modelo padrão (definido em .env)
+alex review
+
+# Com modelo específico
+alex review -m gemini-2.5-pro
 ```
 
-### 3. Evaluation Mode
-Executa baterias de testes para validar a precisão dos agentes.
+**Output exemplo:**
+```
+🛡️ A.L.E.X Code Review Iniciado
+
+[ALEX] Análise finalizada com sucesso.
+
+Veredito Final: FAIL
+--------------------------------------------------
+Foram identificados 2 Blockers críticos de segurança...
+--------------------------------------------------
+
+[Blocker] security-auditor
+Arquivo: src/server.ts (Linha 25)
+Mensagem: Auth Fail-Open — API acessível sem token configurado.
+```
+
+### CLI — `alex analyze <arquivo>`
+Analisa um arquivo completo estruturalmente. Ideal para validar um módulo específico.
+
 ```bash
-npx adk eval src/ tests/evaluation.test.json
+alex analyze src/services/payment.service.ts
 ```
 
----
+> [!NOTE]
+> **Proteções de Segurança na CLI:**
+> - Path Traversal Prevention via `fs.realpath` (anti-symlink bypass)
+> - Data Leakage Blocklist: `.pem`, `.key`, `.pfx`, `.sqlite`, `id_rsa`, `.npmrc`, etc.
+> - Limite de 1MB por arquivo (anti-OOM)
+> - Git diff limitado a 10MB com stream via `spawn` (anti-DoS)
 
-## 🧭 Plano de Execução (The Build Phase)
+### API REST — `POST /v1/analyze`
+Para integração com CI/CD (GitHub Actions, GitLab CI).
 
-### 🧩 Fase 1: Scaffold & Tipagem (Contract First)
-- **Ação:** Inicializar o projeto e definir o Schema JSON de comunicação.
-- **Task:** Configurar `AgentSystem` e definir interfaces: `CodeDiff`, `AnalysisIssue` e `FinalReport`.
-
-### 🔀 Fase 2: Implementação da Orquestração
-- **Ação:** Criar a lógica de coordenação paralela via `Promise.all`.
-- **Task:** Implementar a classe `ReviewOrchestrator` e o gerenciamento de estado dos agentes.
-
-### 🔄 Fase 3: Comunicação Inter-Agentes (Reflexão)
-- **Ação:** Implementar o passo de **Cross-Review**. 
-- **Task:** Configurar loops de reflexão onde o Orquestrador pede para o *Security* revisar as sugestões de *Performance*.
-
-### 📚 Fase 4: Agente de Contexto & RAG Efêmero
-- **Ação:** Desenvolver o `BusinessContextAgent.ts`.
-- **Task:** Implementar busca semântica em arquivos `.md` e `.txt` locais para validar regras de negócio.
-
----
-
-## 📂 Estrutura do Projeto (ADK Patterns)
-
-```text
-A.L.E.X/
-├── src/
-│   ├── agents/          # Definições de LlmAgent (Architect, Security, etc)
-│   ├── tools/           # FunctionTools customizadas (RAG, Diff Analyzers)
-│   ├── schemas/         # Zod schemas para contratos de entrada/saída
-│   └── agent.ts         # Ponto de entrada (rootAgent)
-├── tests/
-│   └── evaluation/      # Arquivos .test.json para ADK Eval
-└── .env                 # Configurações de API Key
+```bash
+npm run start:api
+# API disponível em http://localhost:3000
 ```
 
----
+**Endpoint:** `POST /v1/analyze`
 
-## 📜 Agent Rules (The Constraints)
+**Headers obrigatórios:**
+```
+Authorization: Bearer <API_BEARER_TOKEN>
+Content-Type: application/json
+```
 
-Para garantir a evolução consistente via Antigravity, as seguintes regras são imutáveis:
-
-1.  **Especialização Estrita:** Agentes são proibidos de opinar fora de seu domínio técnico.
-2.  **Protocolo de Consenso:** O Orquestrador possui o poder do **Veto**. Se houver um `Blocker` de segurança, o veredito é **FAIL**.
-3.  **Rastreabilidade:** Cada apontamento deve conter a propriedade `origin` (ex: `origin: "security-agent"`).
-4.  **Tipagem Estrita:** Uso obrigatório de **Enums** para Severidade (`Blocker`, `Critical`, `Major`, `Minor`, `Info`).
-5.  **Prioridade de Domínio:** Regras de negócio documentadas atropelam preferências estéticas de código.
-6.  **Filtro de Ingestão:** O Agente de Contexto deve ignorar pastas de artefatos (`bin`, `obj`, `node_modules`, `dist`).
-
----
-
-## 🏗️ Estratégia de Deploy (Ports & Adapters)
-
-O A.L.E.X foi desenhado com o "Cérebro" centralizado e isolado (Core Engine), permitindo que ele seja consumido através de diferentes adaptadores:
-
-### 1. Integração via API (CI/CD)
-O núcleo pode ser envelopado em um servidor web (Fastify/Express) expondo um endpoint `POST /v1/analyze`.
-- **Casos de Uso:** Acionado via Webhook por GitHub Actions ou GitLab CI a cada novo Pull Request, operando como um revisor de código autônomo.
-- **Payload Exemplo:**
+**Payload:**
 ```json
 {
-  "streamId": "uuid",
-  "metadata": { "stack": ".net", "project": "Bonifiq" },
-  "diff": "git_diff_content_here"
+  "streamId": "uuid-opcional",
+  "metadata": { "stack": ".net", "project": "MeuProjeto" },
+  "diff": "conteúdo_do_git_diff_aqui"
 }
 ```
 
-### 2. Integração via CLI Local
-O núcleo também pode ser embutido num pacote global (`npm install -g @alex/cli`), permitindo uso no terminal.
-- **Casos de Uso:** O desenvolvedor executa `alex review` localmente antes do commit. A CLI captura o `git diff` da máquina, roda a inteligência e pinta o JSON de resposta no próprio terminal.
+**Resposta:**
+```json
+{
+  "streamId": "...",
+  "verdict": "FAIL",
+  "summary": "Foram encontrados 2 Blockers...",
+  "issues": [
+    {
+      "origin": "security-auditor",
+      "severity": "Blocker",
+      "file": "src/api/controller.cs",
+      "line": 42,
+      "message": "SQL Injection via concatenação direta.",
+      "codeSnippet": "var query = \"SELECT * FROM users WHERE id = \" + id;"
+    }
+  ],
+  "timestamp": "2026-04-24T19:00:00Z"
+}
+```
+
+**Health Check:**
+```bash
+curl http://localhost:3000/health
+# {"status":"UP","version":"1.0.0"}
+```
+
+### ADK Web UI (Debug)
+Interface visual para inspecionar o fluxo de raciocínio dos agentes.
+
+```bash
+npx adk web
+# http://localhost:8000
+```
 
 ---
 
-## 📌 Melhorias Futuras (TODOs)
+## 📂 Estrutura do Projeto
 
-- [ ] **Dynamic Model & Key Injection:** Permitir ao usuário (tanto na CLI quanto no payload da API) definir qual modelo do Gemini usar (`gemini-2.0-flash`, `gemini-2.5-pro`, etc) e injetar sua própria `GEMINI_API_KEY` por requisição (Bring Your Own Key - BYOK), garantindo escalabilidade em ambientes multi-tenant sem esgotar a cota de um único projeto.
+```
+A.L.E.X/
+├── src/
+│   ├── agents/
+│   │   └── specialists.ts     # Security, Clean Coder, SRE, Business Proxy
+│   ├── prompts/
+│   │   └── index.ts           # Prompts dos agentes externalizados
+│   ├── schemas/
+│   │   └── contracts.ts       # Zod schemas: AnalysisPayload, FinalReport, etc.
+│   ├── tools/
+│   │   └── diff_tools.ts      # Parser O(n) para metadados de diff/sourceCode
+│   ├── utils/
+│   │   └── parser.ts          # Helper compartilhado de extração de JSON
+│   ├── agent.ts               # rootAgent (ADK entry point)
+│   ├── cli.ts                 # CLI: comandos review e analyze
+│   ├── orchestrator.ts        # ReviewOrchestrator — coordenação do pipeline
+│   └── server.ts              # API Express com Auth, Rate Limit e Zod
+├── tests/
+│   └── evaluation/            # Arquivos .test.json para ADK Eval
+├── .agents/
+│   └── rules.md               # Regras imutáveis do workspace
+├── BACKLOG.md                 # Débitos arquiteturais para iterações futuras
+└── .env.example               # Template de configuração
+```
 
 ---
-© 2026 DgAlvaresTEC - Advanced Agentic Systems
+
+## 🔒 Segurança da API
+
+| Proteção | Implementação |
+|---|---|
+| **Autenticação** | Bearer Token via `crypto.timingSafeEqual` (anti Timing Attack) |
+| **Rate Limiting** | 10 req/min/IP com `express-rate-limit` (RFC headers) |
+| **Validação de Input** | `AnalysisPayloadSchema` via Zod antes de qualquer processamento |
+| **Fail-Closed** | API retorna 500 se `API_BEARER_TOKEN` não estiver configurado |
+| **Trust Proxy** | Restrito a `loopback` por padrão; configurável via `TRUSTED_PROXY_CIDR` |
+| **Body Limit** | 10MB máximo para prevenir DoS no Event Loop |
+
+> [!WARNING]
+> **Ambientes multi-pod (Cloud Run/Kubernetes):** O `MemoryStore` padrão do rate limiter não é compartilhado entre instâncias. Para deploy distribuído, configure `RedisStore` — veja `BACKLOG.md` [INFRA-01].
+
+---
+
+## 📜 Regras do Workspace (`.agents/rules.md`)
+
+1. **Especialização Estrita:** Agentes proibidos de opinar fora de seu domínio técnico.
+2. **Protocolo de Consenso:** Um `Blocker` de segurança resulta em **FAIL** imediato.
+3. **Rastreabilidade:** Todo apontamento deve conter `origin` (ex: `security-auditor`).
+4. **Tipagem Estrita:** Severidades via Enum (`Blocker`, `Critical`, `Major`, `Minor`, `Info`).
+5. **Prioridade de Domínio:** Regras de negócio documentadas sobrepõem preferências estéticas.
+6. **Filtro de Ingestão:** Ignorar `bin`, `obj`, `node_modules`, `dist`.
+7. **Obrigatoriedade de Review:** Todo novo código deve ser validado via `alex review` antes do merge.
+
+---
+
+## 📌 Backlog & Próximos Passos
+
+Os débitos arquiteturais identificados pelo próprio A.L.E.X estão documentados em [`BACKLOG.md`](./BACKLOG.md), incluindo:
+
+- **[ARCH-01/02]** Refatoração da CLI (God Class → Services)
+- **[INFRA-01]** RedisStore para rate limiting distribuído
+- **[QUAL-03]** Testes de unidade (`ADK Eval`)
+
+---
+
+© 2026 DgAlvaresTEC — Advanced Agentic Systems
