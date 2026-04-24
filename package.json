@@ -11,8 +11,8 @@
     "start:api": "node dist/server.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "DgAlvaresTEC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@google/adk": "^1.0.0",
