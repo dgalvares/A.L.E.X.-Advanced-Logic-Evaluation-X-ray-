@@ -1,28 +1,17 @@
-import { FinalReport } from '../schemas/contracts.js';
+import { FinalReport, Severity } from '../schemas/contracts.js';
 
 export function formatReportMarkdown(report: FinalReport, title = 'A.L.E.X Code Review'): string {
-  const verdict = verdictPresentation(report.verdict);
   const severitySummary = formatSeveritySummary(report);
-  const issueSummary = report.issues.length === 0
+  const issues = report.issues.length === 0
     ? '> Nenhum apontamento encontrado.'
-    : formatIssuesTable(report);
-  const issueDetails = report.issues.length === 0
-    ? ''
-    : [
-        '',
-        '<details>',
-        '<summary>Ver detalhes dos apontamentos</summary>',
-        '',
-        report.issues.map(formatIssueDetails).join('\n\n'),
-        '',
-        '</details>',
-      ].join('\n');
+    : report.issues.map(formatIssue).join('\n\n');
 
   return [
-    `## ${verdict.icon} ${title}`,
+    `## ${title}`,
     '',
-    `**Veredito:** ${verdict.label}`,
-    `**Apontamentos:** ${report.issues.length}${severitySummary ? ` (${severitySummary})` : ''}`,
+    `${verdictBadge(report.verdict)} ${severitySummary ? severitySummary : ''}`.trim(),
+    '',
+    `**Apontamentos:** ${report.issues.length}`,
     '',
     '### Resumo',
     '',
@@ -30,18 +19,24 @@ export function formatReportMarkdown(report: FinalReport, title = 'A.L.E.X Code 
     '',
     '### Apontamentos',
     '',
-    issueSummary,
-    issueDetails,
+    issues,
     '',
     '---',
     `<sub>Gerado pelo A.L.E.X em ${report.timestamp}</sub>`,
   ].join('\n');
 }
 
-function verdictPresentation(verdict: FinalReport['verdict']): { icon: string; label: string } {
-  if (verdict === 'PASS') return { icon: '✅', label: 'PASS' };
-  if (verdict === 'WARN') return { icon: '⚠️', label: 'WARN' };
-  return { icon: '❌', label: 'FAIL' };
+function formatIssue(issue: FinalReport['issues'][number]): string {
+  const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+  const snippet = issue.codeSnippet
+    ? `\n\n\`\`\`\n${issue.codeSnippet.trim()}\n\`\`\``
+    : '';
+
+  return [
+    `- ${severityBadge(issue.severity)} **${issue.severity}** em \`${location}\``,
+    `  - **Origem:** ${issue.origin}`,
+    `  - **Mensagem:** ${issue.message}${snippet}`,
+  ].join('\n');
 }
 
 function formatSeveritySummary(report: FinalReport): string {
@@ -50,44 +45,26 @@ function formatSeveritySummary(report: FinalReport): string {
     return acc;
   }, {});
 
-  return ['Blocker', 'Critical', 'Major', 'Minor', 'Info']
+  const parts = (['Blocker', 'Critical', 'Major', 'Minor', 'Info'] as Severity[])
     .filter((severity) => counts[severity])
-    .map((severity) => `${severity}: ${counts[severity]}`)
-    .join(', ');
+    .map((severity) => `${severityBadge(severity)} ${counts[severity]}`);
+
+  return parts.length > 0 ? parts.join(' ') : '';
 }
 
-function formatIssuesTable(report: FinalReport): string {
-  return [
-    '| Severidade | Origem | Local | Mensagem |',
-    '| --- | --- | --- | --- |',
-    ...report.issues.map((issue) => {
-      const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
-      return `| ${issue.severity} | ${escapeTableCell(issue.origin)} | \`${escapeTableCell(location)}\` | ${escapeTableCell(shorten(issue.message, 140))} |`;
-    }),
-  ].join('\n');
+function verdictBadge(verdict: FinalReport['verdict']): string {
+  const color = verdict === 'PASS' ? 'brightgreen' : verdict === 'WARN' ? 'yellow' : 'red';
+  return `![${verdict}](https://img.shields.io/badge/verdict-${verdict}-${color})`;
 }
 
-function formatIssueDetails(issue: FinalReport['issues'][number], index: number): string {
-  const location = issue.line ? `${issue.file}:${issue.line}` : issue.file;
-  const snippet = issue.codeSnippet
-    ? `\n\n\`\`\`\n${issue.codeSnippet.trim()}\n\`\`\``
-    : '';
+function severityBadge(severity: Severity): string {
+  const colorBySeverity: Record<Severity, string> = {
+    Blocker: 'red',
+    Critical: 'red',
+    Major: 'orange',
+    Minor: 'yellow',
+    Info: 'blue',
+  };
 
-  return [
-    `#### ${index + 1}. ${issue.severity} em \`${location}\``,
-    '',
-    `**Origem:** ${issue.origin}`,
-    '',
-    issue.message,
-    snippet,
-  ].join('\n');
-}
-
-function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>');
-}
-
-function shorten(value: string, maxLength: number): string {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+  return `![${severity}](https://img.shields.io/badge/${severity}-${severity}-${colorBySeverity[severity]})`;
 }
