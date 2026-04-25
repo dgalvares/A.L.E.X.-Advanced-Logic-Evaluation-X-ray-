@@ -97,7 +97,7 @@ alex review
 Para instalar direto deste repositório antes da publicação no npm:
 
 ```bash
-npm install -g github:DgAlvaresTEC/A.L.E.X
+npm install -g github:dgalvares/A.L.E.X.-Advanced-Logic-Evaluation-X-ray-
 ```
 
 Faça o setup uma única vez:
@@ -277,34 +277,30 @@ Comentários `@alex` só executam para usuários com permissão `write`, `mainta
 
 ### Publicação no npm
 
-O repositório possui um fluxo de publicação similar ao BonifiQ-CLI:
+O repositório usa publicação por **Trusted Publishing (OIDC)** — sem `NPM_TOKEN` armazenado:
 
-- `.github/workflows/publish.yml`: bump de versão, validação, `npm publish`, commit do bump e tag `vX.Y.Z`.
-- `.github/workflows/release.yml`: cria GitHub Release quando uma tag `v*` é publicada.
-- `.github/workflows/preview-manual.yml`: gera um `.tgz` preview como artifact, sem publicar.
+- `.github/workflows/publish.yml`: publicado no npm quando uma tag `v*` é enviada.
+- `.github/workflows/release.yml`: cria GitHub Release ao detectar tag `v*`.
+- `.github/workflows/preview-manual.yml`: gera `.tgz` preview como artifact, sem publicar.
 
-Configure o secret:
+Configure no npm o Trusted Publisher do pacote `@dgalvarestec/alex`:
 
 ```text
-NPM_TOKEN
+Provider: GitHub Actions
+Repository: dgalvares/A.L.E.X.-Advanced-Logic-Evaluation-X-ray-
+Workflow filename: publish.yml
+Environment: npm-production
 ```
 
-Publicação manual:
+No GitHub, crie o environment `npm-production` (com aprovação manual opcional).
 
-1. Abra **Actions > Publish npm package**.
-2. Execute `workflow_dispatch`.
-3. Escolha o bump: `patch`, `minor` ou `major`.
-
-Publicação automática:
-
-- Push em `main` ou `master` publica um patch, exceto commits do `github-actions[bot]`.
-
-Publicação local, se precisar:
+Publicação de versão:
 
 ```bash
-npm login
-npm pack --dry-run
-npm publish --access public
+npm version patch   # ou minor / major
+npm run typecheck
+npm test
+git push origin main --follow-tags
 ```
 
 ---
