@@ -1,4 +1,6 @@
-# 🛡️ A.L.E.X (Advanced Logic Evaluation X-ray)
+# 🛡️ A.L.E.X. Agentic Reviewer
+> **Agentic Logic Evaluation X-ray**
+> > *The multi-agent council for deep code analysis and automated review.*
 
 > **Status:** ✅ Production Ready | **Engine:** Multi-Agent Reasoning (Google ADK) | **Model:** gemini-2.5-pro
 
