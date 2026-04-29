@@ -43,6 +43,15 @@ test('review command exposes optional profile shortcut', async () => {
   assert.match(help, /--include-context-findings/);
 });
 
+test('ci command exposes context findings option', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const help = execFileSync(process.execPath, ['dist/cli.js', 'ci', '--help'], {
+    encoding: 'utf8',
+  });
+
+  assert.match(help, /--include-context-findings/);
+});
+
 test('resolveAgentIds expands all to every registered agent', () => {
   const resolved = resolveAgentIds({ agents: 'all' });
 

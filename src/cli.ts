@@ -848,6 +848,7 @@ program
   .option('--agents <lista>', 'Agentes habilitados (vírgula). Ex: security-auditor,clean-coder. Usa env ALEX_AGENTS se omitido.')
   .option('--disable-agents <lista>', 'Agentes a remover do conjunto. Ex: docs-maintainer. Usa env ALEX_DISABLED_AGENTS se omitido.')
   .option('--agent-models <mapa>', 'Override de modelo por agente. Ex: "security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro".')
+  .option('--include-context-findings', 'Permite apontamentos fora das linhas alteradas pelo diff usando sourceCode como alvo de analise.')
   .action(async (options) => {
     ensureGeminiApiKey();
     const modelToUse = options.model || defaultModel;

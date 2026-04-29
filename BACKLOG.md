@@ -11,6 +11,8 @@ Este backlog registra debitos reais que devem ser tratados sem inflar o escopo d
 - **ARCH-05:** Planejar novos agentes especializados e perfis dinamicos de review. Detalhes em [`BACKLOG_SPECIALIZED_AGENTS.md`](./BACKLOG_SPECIALIZED_AGENTS.md).
 - **ARCH-06:** Extrair lógica de `resolveAnalysisMode` para utilitário compartilhado (DRY).
 - **ARCH-07:** Refatorar `agent_parser` para importação dinâmica baseada no `REVIEWER_CATALOG` (OCP).
+- **ARCH-08:** Planejar implementação do modo `--deep` com Sequential Thinking (MCP). Detalhes em [`BACKLOG_DEEP_ANALYSIS.md`](./BACKLOG_DEEP_ANALYSIS.md).
+
 
 ## Infra
 
