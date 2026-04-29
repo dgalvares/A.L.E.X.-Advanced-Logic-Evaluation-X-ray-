@@ -105,7 +105,7 @@ npm install -g @dgalvarestec/alex
 Para instalar direto deste repositório antes da publicação no npm:
 
 ```bash
-npm install -g github:dgalvares/A.L.E.X.-Advanced-Logic-Evaluation-X-ray-
+npm install -g github:dgalvares/A.L.E.X.-Agentic-Reviewer
 ```
 
 Antes do primeiro review, configure a chave do Gemini. Sem isso, comandos como `alex review` e `alex analyze` falham ao inicializar a análise.
@@ -355,7 +355,7 @@ Configure no npm o Trusted Publisher do pacote `@dgalvarestec/alex`:
 
 ```text
 Provider: GitHub Actions
-Repository: dgalvares/A.L.E.X.-Advanced-Logic-Evaluation-X-ray-
+Repository: dgalvares/A.L.E.X.-Agentic-Reviewer
 Workflow filename: publish.yml
 Environment: npm-production
 ```

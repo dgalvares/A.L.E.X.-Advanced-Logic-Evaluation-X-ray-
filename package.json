@@ -4,7 +4,7 @@
   "description": "A.L.E.X. Agentic Reviewer powered by Google ADK multi-agent reasoning",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dgalvares/A.L.E.X.-Advanced-Logic-Evaluation-X-ray-.git"
+    "url": "git+https://github.com/dgalvares/A.L.E.X.-Agentic-Reviewer.git"
   },
   "bin": {
     "alex": "./dist/cli.js"
