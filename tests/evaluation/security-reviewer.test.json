@@ -6,6 +6,16 @@
       "name": "reviews performance advice for secret leakage",
       "input": "A performance suggestion expands child process environment forwarding.",
       "expected": ["security tradeoff", "least privilege"]
+    },
+    {
+      "name": "does not confirm cross-scope leakage when global isolation exists",
+      "input": "A performance finding says a query filters only by customerId, but source context shows global ORM filters, scoped repositories, or row-level security and no bypass.",
+      "expected": ["conditional risk", "verify isolation", "not blocker"]
+    },
+    {
+      "name": "flags confirmed cross-scope bypass",
+      "input": "A query uses raw SQL filtering only by customerId and bypasses the scoped repository or global filters.",
+      "expected": ["Blocker", "bypass", "scope"]
     }
   ]
 }

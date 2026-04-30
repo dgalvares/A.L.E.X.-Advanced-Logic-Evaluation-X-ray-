@@ -6,6 +6,16 @@
       "name": "detects secret handling risk",
       "input": "A diff adds process.env.SECRET_TOKEN to a child process environment.",
       "expected": ["credential exposure", "least privilege"]
+    },
+    {
+      "name": "treats implicit scope isolation as conditional evidence",
+      "input": "A query filters by customerId while the provided sourceCode also shows an internal data-access layer that injects organization scope automatically and no IgnoreQueryFilters/raw SQL bypass.",
+      "expected": ["conditional risk", "regression test", "not blocker"]
+    },
+    {
+      "name": "blocks clear scope isolation bypass",
+      "input": "A diff adds direct raw SQL against a shared table filtering only by userId, outside the scoped repository and without organization or account constraints.",
+      "expected": ["Blocker", "bypass", "scope"]
     }
   ]
 }
