@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { extractAndParseJSON } from './utils/parser.js';
-import { AnalysisMode, AnalysisPayload, FinalReport, FinalReportSchema } from './schemas/contracts.js';
+import { AnalysisPayload, FinalReport, FinalReportSchema } from './schemas/contracts.js';
 import { applyStoredConfigToEnv, getConfigPath, getDefaultModel, getGeminiApiKey, readUserConfig, updateUserConfig } from './config.js';
 import { extractCodeMetadata } from './tools/diff_tools.js';
 import { sanitizeDiff } from './utils/diff_sanitizer.js';
@@ -19,6 +19,7 @@ import { formatReportMarkdown } from './utils/report_formatter.js';
 import { AgentModelMap, resolveAgentIds, resolveAgentModels, agentIdToEnvKey } from './agents/agent_parser.js';
 import { AgentId } from './agents/catalog.js';
 import { LlmResultParseError } from './errors.js';
+import { resolveAnalysisMode, resolveRuntimeModel, withResolvedAnalysisMode } from './runtime.js';
 
 /** L├¬ o git diff via spawn com stream limitado a evitar OOM/DoS */
 const MAX_DIFF_BYTES = 10 * 1024 * 1024;  // 10MB stdout
@@ -388,13 +389,6 @@ function printVerdict(spinner: ReturnType<typeof ora>, result: FinalReport): voi
   }
 }
 
-function resolveAnalysisMode(request: AnalysisPayload): AnalysisMode {
-  if (request.metadata?.analysisMode) return request.metadata.analysisMode;
-  if (!request.diff && request.sourceCode) return 'FULL_FILE';
-  if (request.diff && request.sourceCode) return 'DIFF_WITH_CONTEXT';
-  return 'DIFF_ONLY';
-}
-
 async function runAnalysis(
   request: AnalysisPayload,
   model: string,
@@ -407,13 +401,7 @@ async function runAnalysis(
     analysisMode,
     agentModels,
   });
-  const rawResult = await orchestrator.analyze({
-    ...request,
-    metadata: {
-      ...request.metadata,
-      analysisMode,
-    },
-  });
+  const rawResult = await orchestrator.analyze(withResolvedAnalysisMode(request));
   let parsed: unknown;
 
   try {
@@ -715,7 +703,7 @@ program
       process.exit(0);
     }
 
-    const modelToUse = options.model || defaultModel;
+    const modelToUse = resolveRuntimeModel({ explicitModel: options.model || defaultModel });
     spinner.text = `Analisando c├│digo com o Conselho de Especialistas (${modelToUse})... Isso pode levar alguns segundos.`;
 
     
@@ -811,7 +799,7 @@ program
     // Formatando no payload para simular um arquivo ├║nico lido
     const sourceCodePayload = `=== File: ${caminho} ===\n${fileContent}`;
 
-    const modelToUse = options.model || defaultModel;
+    const modelToUse = resolveRuntimeModel({ explicitModel: options.model || defaultModel });
     spinner.text = `Analisando arquivo com o Conselho de Especialistas (${modelToUse})... Isso pode levar alguns segundos.`;
 
     
@@ -851,7 +839,7 @@ program
   .option('--include-context-findings', 'Permite apontamentos fora das linhas alteradas pelo diff usando sourceCode como alvo de analise.')
   .action(async (options) => {
     ensureGeminiApiKey();
-    const modelToUse = options.model || defaultModel;
+    const modelToUse = resolveRuntimeModel({ explicitModel: options.model || defaultModel });
 
     const enabledAgents = resolveAgentsOrExit(options.agents, options.disableAgents);
     const agentModels = resolveAgentModelsOrExit(options.agentModels);

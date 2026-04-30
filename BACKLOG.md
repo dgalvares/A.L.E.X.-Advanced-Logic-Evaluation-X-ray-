@@ -12,6 +12,7 @@ Este backlog registra debitos reais que devem ser tratados sem inflar o escopo d
 - **ARCH-06:** Extrair lógica de `resolveAnalysisMode` para utilitário compartilhado (DRY).
 - **ARCH-07:** Refatorar `agent_parser` para importação dinâmica baseada no `REVIEWER_CATALOG` (OCP).
 - **ARCH-08:** Planejar implementação do modo `--deep` com Sequential Thinking (MCP). Detalhes em [`BACKLOG_DEEP_ANALYSIS.md`](./BACKLOG_DEEP_ANALYSIS.md).
+- **ARCH-09:** Planejar presets de review por proposito combinando agentes e modelos recomendados. Detalhes em [`BACKLOG_REVIEW_PRESETS.md`](./BACKLOG_REVIEW_PRESETS.md).
 
 
 ## Infra

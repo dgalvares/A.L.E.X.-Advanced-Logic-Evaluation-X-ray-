@@ -3,6 +3,7 @@ import { Schema, Type } from '@google/genai';
 import { getDefaultModel } from './config.js';
 import { AgentId, AGENT_BY_ID, DEFAULT_AGENT_IDS, AgentDefinition, REVIEWER_CATALOG } from './agents/catalog.js';
 import { AgentModelMap, resolveModelForAgent } from './agents/agent_parser.js';
+import { createUnknownFunctionCallGuard } from './agents/tool_call_guard.js';
 import { buildArchitectConsolidatorInstruction } from './prompts/index.js';
 import { AnalysisMode } from './schemas/contracts.js';
 
@@ -44,6 +45,10 @@ const finalReportSchema: Schema = {
   },
   required: ['streamId', 'verdict', 'summary', 'issues', 'timestamp']
 };
+
+const noUnknownFunctionCalls = createUnknownFunctionCallGuard({
+  jsonFallbackFunctionNames: ['report_verdict'],
+});
 
 // ─── Options ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +119,7 @@ export const createRootAgent = (
     model: resolveModelForAgent('architect-consolidator', model, opts.agentModels, opts.payloadAgentModels),
     description: 'Consolida o relatório final.',
     instruction: consolidatorInstruction,
+    afterModelCallback: noUnknownFunctionCalls,
     outputSchema: finalReportSchema,
   });
 

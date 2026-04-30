@@ -13,6 +13,14 @@ import {
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT
 } from '../prompts/index.js';
+import { createUnknownFunctionCallGuard } from './tool_call_guard.js';
+
+const jsonFallbackFunctionNames = ['report_verdict'];
+const noUnknownFunctionCalls = createUnknownFunctionCallGuard({ jsonFallbackFunctionNames });
+const businessProxyFunctionGuard = createUnknownFunctionCallGuard({
+  allowedFunctionNames: ['search_local_rules'],
+  jsonFallbackFunctionNames,
+});
 
 /**
  * Agente de Segurança (The Security Auditor)
@@ -22,6 +30,7 @@ export const getSecurityAuditor = (model: string) => new LlmAgent({
   model: model,
   description: 'Auditor de segurança focado em vulnerabilidades e conformidade.',
   instruction: SECURITY_AUDITOR_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
 
   outputKey: 'security_findings',
 });
@@ -34,6 +43,7 @@ export const getCleanCoder = (model: string) => new LlmAgent({
   model: model,
   description: 'Especialista em qualidade de código e padrões de design.',
   instruction: CLEAN_CODER_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
 
   outputKey: 'quality_findings',
 });
@@ -46,6 +56,7 @@ export const getSreAgent = (model: string) => new LlmAgent({
   model: model,
   description: 'Analista de performance e eficiência operacional.',
   instruction: SRE_AGENT_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
 
   outputKey: 'performance_findings',
 });
@@ -59,6 +70,7 @@ export const getBusinessProxy = (model: string) => new LlmAgent({
   description: 'Validador de regras de negócio e contexto de domínio.',
   instruction: BUSINESS_PROXY_PROMPT,
   tools: [searchLocalRules],
+  afterModelCallback: businessProxyFunctionGuard,
   outputKey: 'business_findings',
 });
 
@@ -71,6 +83,7 @@ export const getErrorHandlingSpecialist = (model: string) => new LlmAgent({
   model: model,
   description: 'Especialista em caminhos de erro, resiliencia e falhas seguras.',
   instruction: ERROR_HANDLING_SPECIALIST_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'error_handling_findings',
 });
 
@@ -79,6 +92,7 @@ export const getTestStrategist = (model: string) => new LlmAgent({
   model: model,
   description: 'Especialista em qualidade de testes e cobertura de regressao.',
   instruction: TEST_STRATEGIST_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'test_findings',
 });
 
@@ -87,6 +101,7 @@ export const getObservabilityEngineer = (model: string) => new LlmAgent({
   model: model,
   description: 'Especialista em logs, metricas, traces e debuggability.',
   instruction: OBSERVABILITY_ENGINEER_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'observability_findings',
 });
 
@@ -95,6 +110,7 @@ export const getDocsMaintainer = (model: string) => new LlmAgent({
   model: model,
   description: 'Especialista em documentacao de produto, API e operacao.',
   instruction: DOCS_MAINTAINER_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'docs_findings',
 });
 
@@ -103,6 +119,7 @@ export const getScalabilityArchitect = (model: string) => new LlmAgent({
   model: model,
   description: 'Especialista em escalabilidade, concorrencia e crescimento de dados.',
   instruction: SCALABILITY_ARCHITECT_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'scalability_findings',
 });
 
@@ -111,6 +128,7 @@ export const getSecurityReviewer = (model: string) => new LlmAgent({
   model: model,
   description: 'Revisa achados de outros especialistas sob a ótica de segurança.',
   instruction: SECURITY_REVIEWER_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'security_critique',
 });
 
@@ -119,5 +137,6 @@ export const getPerformanceReviewer = (model: string) => new LlmAgent({
   model: model,
   description: 'Revisa achados de outros especialistas sob a ótica de performance.',
   instruction: PERFORMANCE_REVIEWER_PROMPT,
+  afterModelCallback: noUnknownFunctionCalls,
   outputKey: 'performance_critique',
 });

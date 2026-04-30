@@ -6,11 +6,11 @@ import crypto from 'crypto';
 import { createHash } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { extractAndParseJSON } from './utils/parser.js';
-import { AnalysisMode, AnalysisPayload, AnalysisPayloadSchema, FinalReportSchema } from './schemas/contracts.js';
-import { getDefaultModel } from './config.js';
-import { AgentModelMap, resolveAgentIds } from './agents/agent_parser.js';
+import { AnalysisPayloadSchema, FinalReportSchema } from './schemas/contracts.js';
+import { resolveAgentIds } from './agents/agent_parser.js';
 import { AgentId } from './agents/catalog.js';
 import { LlmResultParseError } from './errors.js';
+import { getPayloadAgentModels, resolveAnalysisMode, resolveRuntimeModel, withResolvedAnalysisMode } from './runtime.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,13 +25,6 @@ app.set('trust proxy', TRUSTED_PROXY);
 
 app.use(cors());
 const jsonParser = express.json({ limit: '25mb' });
-
-function resolveAnalysisMode(request: AnalysisPayload): AnalysisMode {
-  if (request.metadata?.analysisMode) return request.metadata.analysisMode;
-  if (!request.diff && request.sourceCode) return 'FULL_FILE';
-  if (request.diff && request.sourceCode) return 'DIFF_WITH_CONTEXT';
-  return 'DIFF_ONLY';
-}
 
 function readPositiveInteger(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -132,25 +125,14 @@ app.post('/v1/analyze', apiLimiter, authMiddleware, jsonParser, async (req, res)
 
   try {
     const rawResult = await withAnalysisSlot(async () => {
-      const requestedModel = request.metadata?.model || getDefaultModel();
+      const requestedModel = resolveRuntimeModel({ request });
       const analysisMode = resolveAnalysisMode(request);
-      // Constrói o mapa de override de modelo a partir do payload (menor prioridade que env vars)
-      let payloadAgentModels: AgentModelMap | undefined;
-      if (request.metadata?.agentModels) {
-        payloadAgentModels = new Map(Object.entries(request.metadata.agentModels));
-      }
       const orchestrator = new ReviewOrchestrator(requestedModel, {
         enabledAgents,
         analysisMode,
-        payloadAgentModels,
+        payloadAgentModels: getPayloadAgentModels(request),
       });
-      return orchestrator.analyze({
-        ...request,
-        metadata: {
-          ...request.metadata,
-          analysisMode,
-        },
-      });
+      return orchestrator.analyze(withResolvedAnalysisMode(request));
     });
     if (rawResult === undefined) {
       console.warn('[API Backpressure]', {
