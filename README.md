@@ -156,7 +156,7 @@ API_BEARER_TOKEN="sua_senha_secreta"
 ### 3. Compilar
 
 ```bash
-npx tsc
+npm run build
 ```
 
 ### 4. Validar
@@ -169,6 +169,13 @@ npm test
 ---
 
 ## 💻 Modos de Uso
+
+### CLI — opções globais
+
+| Opção | Descrição |
+|---|---|
+| `-h, --help` | Mostra ajuda do comando atual. Ex: `alex ci --help`. |
+| `-V, --version` | Mostra a versão instalada do CLI, derivada do `package.json`. |
 
 ### CLI — `alex review`
 Analisa as modificações locais via `git diff HEAD` e inclui arquivos novos ainda `untracked` no relatório local. Ideal para uso antes do commit.
@@ -185,6 +192,17 @@ alex review --include-context-findings
 ```
 
 Por padrao, `alex review` usa arquivos completos apenas como contexto e o consolidator deve reportar somente problemas causados por linhas tocadas pelo diff.
+
+Parâmetros e opções:
+
+| Opção | Descrição |
+|---|---|
+| `[profile]` | Perfil opcional de agentes. Aceita `default`, `all` ou lista separada por vírgula/espaço. Ex: `alex review all`. |
+| `-m, --model <modelo>` | Modelo LLM da análise. Se omitido, usa `ALEX_MODEL`, configuração persistente ou fallback. |
+| `--agents <lista>` | Agentes habilitados. Ex: `default,test-strategist`. Tem precedência sobre `[profile]`. |
+| `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `sre-agent`. |
+| `--agent-models <mapa>` | Override de modelo por agente. Ex: `security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro`. |
+| `--include-context-findings` | Permite achados fora das linhas alteradas usando o contexto completo dos arquivos modificados. |
 
 **Output exemplo:**
 ```
@@ -208,6 +226,16 @@ Analisa um arquivo completo estruturalmente. Ideal para validar um módulo espec
 ```bash
 alex analyze src/services/payment.service.ts
 ```
+
+Parâmetros e opções:
+
+| Opção | Descrição |
+|---|---|
+| `<arquivo>` | Caminho do arquivo a analisar. Deve existir dentro do workspace, ser arquivo regular e ter até 1MB. |
+| `-m, --model <modelo>` | Modelo LLM da análise. Se omitido, usa `ALEX_MODEL`, configuração persistente ou fallback. |
+| `--agents <lista>` | Agentes habilitados. Ex: `default,error-handling-specialist`. |
+| `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `business-proxy`. |
+| `--agent-models <mapa>` | Override de modelo por agente. Ex: `clean-coder:gemini-2.0-flash`. |
 
 ### Perfis Dinâmicos de Agentes
 
@@ -242,6 +270,40 @@ Agentes revisores não são configuráveis pelo usuário: eles entram automatica
 |---|---|---|
 | `security-reviewer` | `sre-agent`, `clean-coder` | Verifica se achados de performance/qualidade introduzem risco de segurança |
 | `performance-reviewer` | `security-auditor`, `clean-coder` | Verifica se achados de segurança/qualidade introduzem gargalos |
+
+### CLI — `alex config`
+Gerencia a configuração persistente em `~/.alex/config.json`. Variáveis de ambiente têm precedência sobre essa configuração.
+
+| Comando | Descrição |
+|---|---|
+| `alex config set-key` | Salva `GEMINI_API_KEY` usando entrada oculta, sem gravar a chave no histórico do shell. |
+| `alex config set-model <model>` | Define o modelo padrão persistente do CLI. |
+| `alex config set-agents <agents>` | Define o perfil persistente de agentes. Ex: `default,observability-engineer`. |
+| `alex config disable-agent <agents>` | Define agentes persistentes a remover do perfil resolvido. Ex: `docs-maintainer`. |
+| `alex config show` | Mostra a configuração ativa sem exibir segredos. |
+
+### CLI — `alex ci`
+Analisa um diff de PR em CI e gera relatório Markdown ou JSON para automações.
+
+```bash
+alex ci --diff-file pr.diff --output-file alex-review.md --pr-number <PR>
+```
+
+Parâmetros e opções:
+
+| Opção | Descrição |
+|---|---|
+| `--diff-file <arquivo>` | Obrigatório. Arquivo com o diff do PR. Deve existir dentro do workspace e ter até 10MB. |
+| `--output-file <arquivo>` | Arquivo de saída do relatório. Padrão: `alex-review.md`. |
+| `--format <formato>` | Formato de saída: `markdown` ou `json`. Padrão: `markdown`. |
+| `--project <nome>` | Nome do projeto/repositório no metadata da análise. Padrão: nome do diretório atual. |
+| `--pr-number <numero>` | Número do PR usado para enriquecer o título do relatório. |
+| `-m, --model <modelo>` | Modelo LLM da análise. Se omitido, usa `ALEX_MODEL`, configuração persistente ou fallback. |
+| `--fail-on-fail` | Retorna exit code `1` quando o veredito final for `FAIL`. |
+| `--agents <lista>` | Agentes habilitados. Ex: `default,docs-maintainer`. |
+| `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `sre-agent`. |
+| `--agent-models <mapa>` | Override de modelo por agente. Ex: `security-auditor:gemini-2.0-flash`. |
+| `--include-context-findings` | Permite achados fora das linhas alteradas usando o contexto completo dos arquivos modificados. |
 
 > [!NOTE]
 > **Proteções de Segurança na CLI:**
@@ -347,8 +409,7 @@ Comentários `alex review` só executam para usuários com permissão `write`, `
 
 O repositório usa publicação por **Trusted Publishing (OIDC)** — sem `NPM_TOKEN` armazenado:
 
-- `.github/workflows/publish.yml`: publicado no npm quando uma tag `v*` é enviada.
-- `.github/workflows/release.yml`: cria GitHub Release ao detectar tag `v*`.
+- `.github/workflows/publish.yml`: valida, empacota, publica no npm e só então cria um draft de GitHub Release com release notes geradas automaticamente para revisão.
 - `.github/workflows/preview-manual.yml`: gera `.tgz` preview como artifact, sem publicar.
 
 Configure no npm o Trusted Publisher do pacote `@dgalvarestec/alex`:
@@ -370,6 +431,8 @@ npm run typecheck
 npm test
 git push origin main --follow-tags
 ```
+
+A GitHub Release draft só é criada após o `npm publish` concluir com sucesso. O pacote `.tgz` anexado à release é o mesmo artefato publicado no npm, reduzindo divergência entre release notes, tag e conteúdo publicado. Revise as notas geradas antes de publicar a release.
 
 ---
 

@@ -37,6 +37,14 @@ Este documento rege o comportamento da IA (Antigravity) durante o desenvolviment
 ## 7. Validação de Código
 - **Code Review Obrigatório:** Todo novo código gerado ou modificado pela IA ou desenvolvedores deve passar obrigatoriamente pela validação local do A.L.E.X (`alex review` ou `alex analyze <arquivo>`) antes de ser considerado finalizado.
 
+## 8. Release & Publicação
+- **Versionamento SemVer:** Toda release pública deve usar Semantic Versioning (`MAJOR.MINOR.PATCH`) e tag Git no formato `vX.Y.Z`, mantendo paridade exata com `package.json`.
+- **Pipeline Reprodutível:** Releases devem partir de `npm ci`, build limpo, `npm run typecheck`, `npm test` e `npm pack --dry-run` antes de publicar artefatos.
+- **Publicação Segura:** Publicação npm deve usar Trusted Publishing/OIDC com permissões mínimas (`id-token: write` e `contents: read`; `contents: write` apenas quando o mesmo job criar GitHub Release) e environment protegido para produção, sem tokens npm permanentes no repositório.
+- **Proveniência & Auditoria:** Pacotes públicos devem ser publicados com proveniência verificável quando suportado pelo registry/CI, e GitHub Releases devem apontar para a mesma tag e anexar o pacote gerado.
+- **Notas de Release:** Toda release deve documentar alterações relevantes, breaking changes, migrações e riscos conhecidos em GitHub Release ou changelog; notas geradas automaticamente devem ser revisadas como draft antes da publicação pública.
+- **Ordem de Publicação:** A GitHub Release só deve ser considerada final quando a publicação npm concluir com sucesso; falhas devem bloquear ou manter a release como draft/pre-release.
+
 ---
 > [!IMPORTANT]
 > Estas regras são imutáveis e alinham o A.L.E.X ao estado da arte do desenvolvimento agentic com Google ADK.

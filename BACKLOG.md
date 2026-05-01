@@ -13,7 +13,7 @@ Este backlog registra debitos reais que devem ser tratados sem inflar o escopo d
 - **ARCH-07:** Refatorar `agent_parser` para importação dinâmica baseada no `REVIEWER_CATALOG` (OCP).
 - **ARCH-08:** Planejar implementação do modo `--deep` com Sequential Thinking (MCP). Detalhes em [`BACKLOG_DEEP_ANALYSIS.md`](./BACKLOG_DEEP_ANALYSIS.md).
 - **ARCH-09:** Planejar presets de review por proposito combinando agentes e modelos recomendados. Detalhes em [`BACKLOG_REVIEW_PRESETS.md`](./BACKLOG_REVIEW_PRESETS.md).
-- **ARCH-10:** Externalizar prompts dos agentes hoje hardcoded em `src/prompts/index.ts`, atendendo a regra "Prompts Externos" de `.agents/rules.md`. Escopo sugerido: mover regras comuns e prompts por agente para arquivos `.md` ou estrutura de Skills, carregar em runtime/build com fallback testavel, garantir inclusao no pacote publicado e manter testes/evaluations para validar que todos os agentes recebem instrucao.
+- **ARCH-10:** [Concluido] Externalizar prompts dos agentes antes hardcoded em `src/prompts/index.ts`, atendendo a regra "Prompts Externos" de `.agents/rules.md`. Entregue com templates `.md`, loader testavel, copia para `dist` no build, inclusao no pacote publicado e testes unitarios de carregamento/renderizacao.
 
 
 ## Infra

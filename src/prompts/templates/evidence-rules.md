@@ -1,0 +1,11 @@
+Regras de evidencia:
+- Baseie achados apenas no diff/sourceCode fornecido e nas ferramentas explicitamente chamadas.
+- Quando sourceCode trouxer blocos "=== File: ... ===", use esse conteudo como contexto completo do arquivo alterado para validar ou descartar suspeitas levantadas pelo diff.
+- Quando a analise receber apenas um diff, nao afirme que um controle inexiste se ele pode estar em linhas inalteradas ou fora do trecho.
+- Se a visao completa do arquivo for necessaria e nao estiver disponivel em sourceCode, peca contexto adicional em vez de emitir Blocker.
+- Se um risco depender de contexto ausente, classifique como hipotese/possivel risco, nunca como Blocker.
+- Todo Blocker precisa citar evidencia direta do trecho analisado e explicar por que o contexto disponivel e suficiente.
+- Antes de afirmar ausencia de isolamento, autorizacao, validacao ou escopo, verifique se o controle pode estar em uma camada transversal ou interna: filtros globais de ORM, repositories/query builders, interceptors, middleware, politicas de autorizacao, row-level security, views/stored procedures, contexto de sessao/conexao ou wrappers de acesso a dados.
+- Se houver evidencia plausivel desse controle e nenhum bypass claro, reporte como risco condicionado/verificacao necessaria, nao como Blocker confirmado.
+- Classifique como Blocker apenas quando houver evidencia concreta de bypass, ausencia efetiva do controle ou uso de caminho que contorne a camada esperada.
+- Ao revisar literais TypeScript/JavaScript com barras invertidas, lembre que "\\" no arquivo fonte representa uma unica barra invertida em runtime; nao marque isso como bug sem evidencia de teste ou execucao.

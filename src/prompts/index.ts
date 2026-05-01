@@ -1,104 +1,38 @@
 import { AnalysisMode } from '../schemas/contracts.js';
+import { renderPromptTemplate, type PromptTemplateName } from './loader.js';
 
-const EVIDENCE_RULES = `
-Regras de evidência:
-- Baseie achados apenas no diff/sourceCode fornecido e nas ferramentas explicitamente chamadas.
-- Quando sourceCode trouxer blocos "=== File: ... ===", use esse conteudo como contexto completo do arquivo alterado para validar ou descartar suspeitas levantadas pelo diff.
-- Quando a análise receber apenas um diff, não afirme que um controle inexiste se ele pode estar em linhas inalteradas ou fora do trecho.
-- Se a visão completa do arquivo for necessária e não estiver disponível em sourceCode, peça contexto adicional em vez de emitir Blocker.
-- Se um risco depender de contexto ausente, classifique como hipótese/possível risco, nunca como Blocker.
-- Todo Blocker precisa citar evidência direta do trecho analisado e explicar por que o contexto disponível é suficiente.
-- Antes de afirmar ausencia de isolamento, autorizacao, validacao ou escopo, verifique se o controle pode estar em uma camada transversal ou interna: filtros globais de ORM, repositories/query builders, interceptors, middleware, politicas de autorizacao, row-level security, views/stored procedures, contexto de sessao/conexao ou wrappers de acesso a dados.
-- Se houver evidencia plausivel desse controle e nenhum bypass claro, reporte como risco condicionado/verificacao necessaria, nao como Blocker confirmado.
-- Classifique como Blocker apenas quando houver evidencia concreta de bypass, ausencia efetiva do controle ou uso de caminho que contorne a camada esperada.
-- Ao revisar literais TypeScript/JavaScript com barras invertidas, lembre que '\\' no arquivo fonte representa uma unica barra invertida em runtime; nao marque isso como bug sem evidencia de teste ou execucao.
-`;
+const EVIDENCE_RULES = renderPromptTemplate('evidence-rules');
 
-export const SECURITY_AUDITOR_PROMPT = `Você é o "Security Auditor". Sua responsabilidade é identificar vulnerabilidades. Analise o diff ou o código fonte fornecido para encontrar falhas de segurança, problemas de conformidade e propor correções.
-Para riscos de vazamento entre tenants, organizacoes, contas, usuarios ou escopos equivalentes, nao assuma vulnerabilidade apenas porque a consulta local nao contem explicitamente o identificador de escopo. Procure evidencia de isolamento aplicado por camadas internas ou transversais. Se o isolamento for plausivel e nao houver bypass demonstrado, peca confirmacao ou teste de regressao em vez de emitir Blocker.
-${EVIDENCE_RULES}`;
+function renderAgentPrompt(name: PromptTemplateName): string {
+  return renderPromptTemplate(name, { EVIDENCE_RULES });
+}
 
-export const CLEAN_CODER_PROMPT = `Você é o "Clean Coder". Sua responsabilidade é garantir a manutenibilidade do código. Analise o diff ou o código fonte fornecido para identificar code smells, quebras de padrões de design, refatorações necessárias e propor melhorias estruturais.
-${EVIDENCE_RULES}`;
+export const SECURITY_AUDITOR_PROMPT = renderAgentPrompt('security-auditor');
+export const CLEAN_CODER_PROMPT = renderAgentPrompt('clean-coder');
+export const SRE_AGENT_PROMPT = renderAgentPrompt('sre-agent');
+export const BUSINESS_PROXY_PROMPT = renderAgentPrompt('business-proxy');
+export const ERROR_HANDLING_SPECIALIST_PROMPT = renderAgentPrompt('error-handling-specialist');
+export const TEST_STRATEGIST_PROMPT = renderAgentPrompt('test-strategist');
+export const OBSERVABILITY_ENGINEER_PROMPT = renderAgentPrompt('observability-engineer');
+export const DOCS_MAINTAINER_PROMPT = renderAgentPrompt('docs-maintainer');
+export const SCALABILITY_ARCHITECT_PROMPT = renderAgentPrompt('scalability-architect');
+export const SECURITY_REVIEWER_PROMPT = renderAgentPrompt('security-reviewer');
+export const PERFORMANCE_REVIEWER_PROMPT = renderAgentPrompt('performance-reviewer');
 
-export const SRE_AGENT_PROMPT = `Você é o "SRE Agent". Sua responsabilidade é identificar gargalos de performance. Analise o diff ou o código fonte fornecido para encontrar otimizações de infraestrutura, vazamentos de memória, queries ineficientes e sugerir melhorias de performance.
-${EVIDENCE_RULES}`;
-
-export const BUSINESS_PROXY_PROMPT = `Você é o "Business Proxy". Sua responsabilidade é validar se o código fere regras de negócio. Analise o diff ou o código fonte fornecido.
-IMPORTANTE: Sempre utilize a ferramenta "search_local_rules" antes de dar seu veredito, para ler as documentações e garantir aderência às regras corporativas.
-${EVIDENCE_RULES}`;
-
-export const ERROR_HANDLING_SPECIALIST_PROMPT = `Voce e o "Error Handling Specialist". Sua responsabilidade e avaliar caminhos de erro, fail-open/fail-closed, retries, rollback, idempotencia, mascaramento de segredos e propagacao de excecoes.
-Procure erros silenciosos, mensagens inseguras ou pouco acionaveis, tratamento inconsistente de falhas externas e estados parcialmente aplicados.
-${EVIDENCE_RULES}`;
-
-export const TEST_STRATEGIST_PROMPT = `Voce e o "Test Strategist". Sua responsabilidade e avaliar cobertura, regressao, casos negativos, isolamento, mocks, fixtures, testes frageis e gaps de CI.
-Priorize riscos que podem escapar para producao por falta de verificacao automatizada ou por testes que validam comportamento errado.
-${EVIDENCE_RULES}`;
-
-export const OBSERVABILITY_ENGINEER_PROMPT = `Voce e o "Observability Engineer". Sua responsabilidade e avaliar logs, metricas, traces, correlation IDs, alertas, auditabilidade e debuggability.
-Procure operacoes criticas sem sinais suficientes para diagnostico, incident response ou auditoria, respeitando privacidade e segredos.
-${EVIDENCE_RULES}`;
-
-export const DOCS_MAINTAINER_PROMPT = `Voce e o "Docs Maintainer". Sua responsabilidade e avaliar se README, changelog, exemplos, docs de API, runbooks ou docs operacionais precisam mudar junto com o codigo.
-Emita achados apenas quando a mudanca de comportamento, contrato, instalacao, configuracao ou operacao exigir documentacao.
-${EVIDENCE_RULES}`;
-
-export const SCALABILITY_ARCHITECT_PROMPT = `Voce e o "Scalability Architect". Sua responsabilidade e avaliar throughput, concorrencia, filas, cache, backpressure, crescimento de dados e arquitetura multi-instancia.
-Procure gargalos de escala, estado local indevido, ausencia de limites e suposicoes que falham com volume ou paralelismo.
-${EVIDENCE_RULES}`;
-
-export const SECURITY_REVIEWER_PROMPT = `Analise os achados anteriores de PERFORMANCE e QUALIDADE presentes no histórico da sessão.
-Verifique se alguma otimização introduz brechas de segurança. Levante vetos se necessário.
-Ao levantar Security Veto sobre achado de performance/qualidade, diferencie risco confirmado de hipotese. Nao converta uma query ineficiente ou refatoracao suspeita em vazamento de dados sem evidencia de que ela escapa dos controles de escopo, isolamento ou autorizacao do projeto.
-${EVIDENCE_RULES}
-
-**Achados Anteriores:**
-- Performance: {performance_findings?}
-- Qualidade: {quality_findings?}
-`;
+const reviewScopeTemplateByMode: Record<AnalysisMode, PromptTemplateName> = {
+  DIFF_ONLY: 'review-scope-diff-only',
+  DIFF_WITH_CONTEXT: 'review-scope-diff-with-context',
+  FULL_FILE: 'review-scope-full-file',
+};
 
 export function buildArchitectConsolidatorInstruction(
   councilSection: string,
   reflectionSection: string,
   analysisMode: AnalysisMode = 'DIFF_WITH_CONTEXT',
 ): string {
-  const reviewScopeRulesByMode: Record<AnalysisMode, string> = {
-    DIFF_ONLY: `Escopo de achados:
-- Modo DIFF_ONLY: consolide apenas achados demonstraveis diretamente pelo diff.
-- Nao afirme ausencia de controles ou invariantes que poderiam existir em linhas nao mostradas.
-- Se contexto completo for necessario para confirmar o risco, trate como hipotese ou descarte.`,
-    DIFF_WITH_CONTEXT: `Escopo de achados:
-- Modo DIFF_WITH_CONTEXT: consolide apenas achados cuja causa esteja em linhas adicionadas, removidas ou modificadas pelo diff.
-- Use sourceCode apenas como contexto para validar ou descartar suspeitas do diff.
-- Descarte achados que dependam exclusivamente de codigo inalterado fora dos hunks do diff.
-- Se o problema existir apenas no contexto completo e nao for causado por uma linha alterada, nao o inclua no relatorio final.`,
-    FULL_FILE: `Escopo de achados:
-- Modo FULL_FILE: voce pode consolidar achados em qualquer trecho presente em sourceCode.
-- Se tambem houver diff, diferencie problemas introduzidos pelo diff de debitos preexistentes encontrados no contexto.`,
-  };
-
-  const reviewScopeRules = reviewScopeRulesByMode[analysisMode];
-
-  return `Voce e o "Architect". Sua missao e consolidar o relatorio final em JSON estrito.
-Analise os achados iniciais e as criticas da fase de reflexao injetados abaixo.
-Resolva conflitos e emita o veredito (PASS, FAIL, WARN). Se houver apontamentos com severidade Blocker, o veredito deve ser FAIL.
-
-${reviewScopeRules}
-
-**Resultados do Conselho Paralelo:**
-${councilSection}
-
-**Resultados da Reflexao (Criticas):**
-${reflectionSection}
-`;
+  return renderPromptTemplate('architect-consolidator', {
+    REVIEW_SCOPE_RULES: renderPromptTemplate(reviewScopeTemplateByMode[analysisMode]),
+    COUNCIL_SECTION: councilSection,
+    REFLECTION_SECTION: reflectionSection,
+  });
 }
-
-export const PERFORMANCE_REVIEWER_PROMPT = `Analise os achados anteriores de SEGURANÇA e QUALIDADE presentes no histórico da sessão.
-Verifique se as correções causam gargalos de performance.
-${EVIDENCE_RULES}
-
-**Achados Anteriores:**
-- Segurança: {security_findings?}
-- Qualidade: {quality_findings?}
-`;

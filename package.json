@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && tsc",
+    "build": "npm run clean && tsc && node scripts/copy-prompts.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/unit/*.test.mjs",
     "prepack": "npm run build",

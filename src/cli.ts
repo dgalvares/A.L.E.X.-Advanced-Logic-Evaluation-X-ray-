@@ -502,6 +502,19 @@ dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 applyStoredConfigToEnv();
 const defaultModel = getDefaultModel();
 
+function getPackageVersion(): string {
+  try {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'),
+    ) as { version?: unknown };
+    return typeof packageJson.version === 'string' ? packageJson.version : '0.0.0';
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(pc.yellow(`Aviso: nao foi possivel ler a versao do package.json (${reason}).`));
+    return '0.0.0';
+  }
+}
+
 function ensureGeminiApiKey(): void {
   if (getGeminiApiKey()) return;
 
@@ -571,7 +584,7 @@ const program = new Command();
 program
   .name('alex')
   .description('A.L.E.X (Advanced Logic Evaluation X-ray) CLI')
-  .version('1.0.0');
+  .version(getPackageVersion());
 
 const configCommand = program
   .command('config')
