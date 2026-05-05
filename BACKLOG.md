@@ -14,6 +14,7 @@ Este backlog registra debitos reais que devem ser tratados sem inflar o escopo d
 - **ARCH-08:** Planejar implementação do modo `--deep` com Sequential Thinking (MCP). Detalhes em [`BACKLOG_DEEP_ANALYSIS.md`](./BACKLOG_DEEP_ANALYSIS.md).
 - **ARCH-09:** Planejar presets de review por proposito combinando agentes e modelos recomendados. Detalhes em [`BACKLOG_REVIEW_PRESETS.md`](./BACKLOG_REVIEW_PRESETS.md).
 - **ARCH-10:** [Concluido] Externalizar prompts dos agentes antes hardcoded em `src/prompts/index.ts`, atendendo a regra "Prompts Externos" de `.agents/rules.md`. Entregue com templates `.md`, loader testavel, copia para `dist` no build, inclusao no pacote publicado e testes unitarios de carregamento/renderizacao.
+- **ARCH-11:** Migrar arquitetura de agentes para o modelo de **Skills** nativo do ADK, permitindo modularidade e economia de contexto. Detalhes em [`BACKLOG_SKILLS_MIGRATION.md`](./BACKLOG_SKILLS_MIGRATION.md).
 
 
 ## Infra

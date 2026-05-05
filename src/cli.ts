@@ -13,13 +13,17 @@ import { extractAndParseJSON } from './utils/parser.js';
 import { AnalysisPayload, FinalReport, FinalReportSchema } from './schemas/contracts.js';
 import { applyStoredConfigToEnv, getConfigPath, getDefaultModel, getGeminiApiKey, readUserConfig, updateUserConfig } from './config.js';
 import { extractCodeMetadata } from './tools/diff_tools.js';
-import { sanitizeDiff } from './utils/diff_sanitizer.js';
+import { sanitizeDiff, sanitizeSourceContent } from './utils/diff_sanitizer.js';
 import { isBlockedSensitivePath } from './utils/sensitive_paths.js';
 import { formatReportMarkdown } from './utils/report_formatter.js';
 import { AgentModelMap, resolveAgentIds, resolveAgentModels, agentIdToEnvKey } from './agents/agent_parser.js';
 import { AgentId } from './agents/catalog.js';
 import { LlmResultParseError } from './errors.js';
 import { resolveAnalysisMode, resolveRuntimeModel, withResolvedAnalysisMode } from './runtime.js';
+import { getCodebaseContext, getGitTopLevel } from './tools/codebase_context.js';
+import { isLikelyBinary, isWithinDirectory } from './utils/file_guards.js';
+import { getSanitizedChildEnv } from './utils/subprocess_env.js';
+import { isEnabledOption } from './utils/options.js';
 
 /** L├¬ o git diff via spawn com stream limitado a evitar OOM/DoS */
 const MAX_DIFF_BYTES = 10 * 1024 * 1024;  // 10MB stdout
@@ -32,35 +36,6 @@ const MAX_RAW_RESULT_LOG_BYTES = 16 * 1024;
 const MAX_UNTRACKED_DIFF_FILE_BYTES = 256 * 1024;
 const MAX_UNTRACKED_FILES = 100;
 const MAX_UNTRACKED_LIST_BYTES = 1024 * 1024;
-
-const CHILD_ENV_ALLOWLIST = [
-  'PATH',
-  'Path',
-  'PATHEXT',
-  'SystemRoot',
-  'WINDIR',
-  'COMSPEC',
-  'HOME',
-  'USERPROFILE',
-  'HOMEDRIVE',
-  'HOMEPATH',
-  'APPDATA',
-  'LOCALAPPDATA',
-  'TEMP',
-  'TMP',
-  'LANG',
-  'LC_ALL',
-] as const;
-
-function getSanitizedChildEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
-  for (const key of CHILD_ENV_ALLOWLIST) {
-    if (process.env[key] !== undefined) {
-      env[key] = process.env[key];
-    }
-  }
-  return env;
-}
 
 function truncateForLog(value: string, maxBytes = MAX_RAW_RESULT_LOG_BYTES): string {
   const valueBytes = Buffer.byteLength(value, 'utf-8');
@@ -77,15 +52,6 @@ function countLines(value: string): number {
     if (value.charCodeAt(i) === 10) count += 1;
   }
   return count;
-}
-
-function isLikelyBinary(buffer: Buffer): boolean {
-  return buffer.includes(0);
-}
-
-function isWithinDirectory(basePath: string, targetPath: string): boolean {
-  const relative = path.relative(basePath, targetPath);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 async function resolveExistingFileWithinCwd(inputPath: string): Promise<string> {
@@ -275,16 +241,17 @@ async function getLocalReviewDiff(): Promise<string> {
   return [trackedDiff, untrackedDiff].filter((part) => part.trim()).join('\n');
 }
 
-async function getChangedFilesContext(diffContent: string): Promise<string | undefined> {
-  const metadata = extractCodeMetadata(diffContent);
-  const cwdReal = await fs.promises.realpath(process.cwd());
+async function getChangedFilesContext(diffContent: string, changedFiles?: string[]): Promise<string | undefined> {
+  const metadataFiles = changedFiles ?? extractCodeMetadata(diffContent).files;
+  const repoRoot = await getGitTopLevel(process.cwd());
+  const cwdReal = await fs.promises.realpath(repoRoot);
   let totalBytes = 0;
   let limitReached = false;
   const selectedFiles: Array<{ file: string; resolvedPath: string }> = [];
 
-  const files = metadata.files.slice(0, MAX_CONTEXT_FILES);
+  const files = metadataFiles.slice(0, MAX_CONTEXT_FILES);
   for (const file of files) {
-    const targetPath = path.resolve(process.cwd(), file);
+    const targetPath = path.resolve(repoRoot, file);
     let resolvedPath: string;
 
     try {
@@ -324,7 +291,7 @@ async function getChangedFilesContext(diffContent: string): Promise<string | und
     const batchSections = await Promise.all(
       batch.map(async ({ file, resolvedPath }) => {
         try {
-          const content = await fs.promises.readFile(resolvedPath, 'utf-8');
+          const content = sanitizeSourceContent(await fs.promises.readFile(resolvedPath, 'utf-8'));
           return `=== File: ${file} ===\n${content}\n`;
         } catch (error: unknown) {
           const message = error instanceof Error ? error.message : 'unknown read error';
@@ -342,7 +309,7 @@ async function getChangedFilesContext(diffContent: string): Promise<string | und
     combinedContext += '\n=== CONTEXT NOTICE ===\nFull-file context limit reached; some changed files were omitted.\n';
   }
 
-  if (metadata.files.length > MAX_CONTEXT_FILES) {
+  if (metadataFiles.length > MAX_CONTEXT_FILES) {
     combinedContext += `\n=== CONTEXT NOTICE ===\nFile context limit reached; only the first ${MAX_CONTEXT_FILES} changed files were inspected.\n`;
   }
 
@@ -350,6 +317,33 @@ async function getChangedFilesContext(diffContent: string): Promise<string | und
 }
 
 // ÔöÇÔöÇÔöÇ Helper compartilhado de UI ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+async function getReviewSourceContext(
+  diffContent: string,
+  includeCodebaseContext: boolean,
+  disableCodebaseLimits: boolean,
+): Promise<string | undefined> {
+  const changedFiles = extractCodeMetadata(diffContent).files;
+  const [changedFilesContext, codebaseContext] = await Promise.all([
+    getChangedFilesContext(diffContent, changedFiles),
+    includeCodebaseContext
+      ? getCodebaseContext({ excludeFiles: changedFiles, disableLimits: disableCodebaseLimits })
+      : Promise.resolve(undefined),
+  ]);
+  return [changedFilesContext, codebaseContext].filter(Boolean).join('\n') || undefined;
+}
+
+function resolveCodebaseContextOptions(options: { includeCodebaseContext?: boolean; unsafeDisableCodebaseLimits?: boolean }): {
+  includeCodebaseContext: boolean;
+  disableCodebaseLimits: boolean;
+} {
+  return {
+    includeCodebaseContext: options.includeCodebaseContext === true ||
+      isEnabledOption(process.env.ALEX_INCLUDE_CODEBASE_CONTEXT),
+    disableCodebaseLimits: options.unsafeDisableCodebaseLimits === true ||
+      isEnabledOption(process.env.ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS),
+  };
+}
+
 function printVerdict(spinner: ReturnType<typeof ora>, result: FinalReport): void {
   spinner.stop();
   const isPass = result.verdict === 'PASS';
@@ -690,6 +684,8 @@ program
   .option('--disable-agents <lista>', 'Agentes a remover do conjunto. Ex: sre-agent. Usa env ALEX_DISABLED_AGENTS se omitido.')
   .option('--agent-models <mapa>', 'Override de modelo por agente. Ex: "security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro".')
   .option('--include-context-findings', 'Permite apontamentos fora das linhas alteradas pelo diff usando sourceCode como alvo de analise.')
+  .option('--include-codebase-context', 'Inclui a codebase rastreada pelo Git como contexto de analise. Default: off.')
+  .option('--unsafe-disable-codebase-limits', 'Remove limites de tamanho/quantidade do contexto de codebase. Mantem filtros de seguranca. Use por conta e risco.')
   .action(async (profile, options) => {
     ensureGeminiApiKey();
     console.log(pc.cyan(pc.bold('\n🛡️ A.L.E.X Code Review Iniciado\n')));
@@ -717,20 +713,29 @@ program
     }
 
     const modelToUse = resolveRuntimeModel({ explicitModel: options.model || defaultModel });
+    const requestedCodebaseOptions = resolveCodebaseContextOptions(options);
     spinner.text = `Analisando c├│digo com o Conselho de Especialistas (${modelToUse})... Isso pode levar alguns segundos.`;
 
-    
-    const request: AnalysisPayload = {
-      metadata: {
-        stack: "Auto-detected",
-        project: process.cwd().split(/[\/\\]/).pop() || 'local-workspace',
-        analysisMode: options.includeContextFindings === true ? 'FULL_FILE' : 'DIFF_WITH_CONTEXT',
-      },
-      diff: sanitizeDiff(diffContent),
-      sourceCode: sanitizeDiff(await getChangedFilesContext(diffContent) || '')
-    };
+    if (requestedCodebaseOptions.includeCodebaseContext) {
+      spinner.text = 'Coletando contexto da codebase... Isso pode levar alguns segundos.';
+    }
 
     try {
+      const request: AnalysisPayload = {
+        metadata: {
+          stack: "Auto-detected",
+          project: process.cwd().split(/[\/\\]/).pop() || 'local-workspace',
+          analysisMode: options.includeContextFindings === true ? 'FULL_FILE' : 'DIFF_WITH_CONTEXT',
+        },
+        diff: sanitizeDiff(diffContent),
+        sourceCode: await getReviewSourceContext(
+          diffContent,
+          requestedCodebaseOptions.includeCodebaseContext,
+          requestedCodebaseOptions.disableCodebaseLimits,
+        ) || ''
+      };
+
+      spinner.text = `Analisando câ”œâ”‚digo com o Conselho de Especialistas (${modelToUse})... Isso pode levar alguns segundos.`;
       const result = await runAnalysis(request, modelToUse, enabledAgents, agentModels);
 
       printVerdict(spinner, result);
@@ -822,7 +827,7 @@ program
         project: process.cwd().split(/[\/\\]/).pop() || 'local-workspace',
         analysisMode: 'FULL_FILE',
       },
-      sourceCode: sanitizeDiff(sourceCodePayload)
+      sourceCode: sanitizeSourceContent(sourceCodePayload)
     };
 
     try {
@@ -850,6 +855,8 @@ program
   .option('--disable-agents <lista>', 'Agentes a remover do conjunto. Ex: docs-maintainer. Usa env ALEX_DISABLED_AGENTS se omitido.')
   .option('--agent-models <mapa>', 'Override de modelo por agente. Ex: "security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro".')
   .option('--include-context-findings', 'Permite apontamentos fora das linhas alteradas pelo diff usando sourceCode como alvo de analise.')
+  .option('--include-codebase-context', 'Inclui a codebase rastreada pelo Git como contexto de analise. Tambem aceita ALEX_INCLUDE_CODEBASE_CONTEXT=true. Default: off.')
+  .option('--unsafe-disable-codebase-limits', 'Remove limites de tamanho/quantidade do contexto de codebase. Tambem aceita ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS=true. Use por conta e risco.')
   .action(async (options) => {
     ensureGeminiApiKey();
     const modelToUse = resolveRuntimeModel({ explicitModel: options.model || defaultModel });
@@ -870,6 +877,8 @@ program
         throw new Error('Arquivo de diff vazio.');
       }
 
+      const codebaseOptions = resolveCodebaseContextOptions(options);
+
       const request: AnalysisPayload = {
         metadata: {
           stack: 'Auto-detected',
@@ -877,7 +886,11 @@ program
           analysisMode: options.includeContextFindings === true ? 'FULL_FILE' : 'DIFF_WITH_CONTEXT',
         },
         diff: sanitizeDiff(diffContent),
-        sourceCode: sanitizeDiff(await getChangedFilesContext(diffContent) || ''),
+        sourceCode: await getReviewSourceContext(
+          diffContent,
+          codebaseOptions.includeCodebaseContext,
+          codebaseOptions.disableCodebaseLimits,
+        ) || '',
       };
 
       const result = await runAnalysis(request, modelToUse, enabledAgents, agentModels);

@@ -189,6 +189,12 @@ alex review -m gemini-2.5-pro
 
 # Permite achados tambem em trechos fora do diff, usando o contexto completo dos arquivos alterados
 alex review --include-context-findings
+
+# Inclui a codebase rastreada pelo Git como contexto, mantendo achados restritos ao diff
+alex review --include-codebase-context
+
+# Remove limites de tamanho/quantidade do contexto de codebase. Use por conta e risco.
+alex review --include-codebase-context --unsafe-disable-codebase-limits
 ```
 
 Por padrao, `alex review` usa arquivos completos apenas como contexto e o consolidator deve reportar somente problemas causados por linhas tocadas pelo diff.
@@ -203,6 +209,8 @@ Parâmetros e opções:
 | `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `sre-agent`. |
 | `--agent-models <mapa>` | Override de modelo por agente. Ex: `security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro`. |
 | `--include-context-findings` | Permite achados fora das linhas alteradas usando o contexto completo dos arquivos modificados. |
+| `--include-codebase-context` | Inclui a codebase rastreada pelo Git como contexto para validar o diff. Tambem aceita `ALEX_INCLUDE_CODEBASE_CONTEXT=true`. Default: desligado. |
+| `--unsafe-disable-codebase-limits` | Remove limites de tamanho/quantidade do contexto de codebase. Tambem aceita `ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS=true`. Mantem filtros de seguranca. |
 
 **Output exemplo:**
 ```
@@ -304,6 +312,8 @@ Parâmetros e opções:
 | `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `sre-agent`. |
 | `--agent-models <mapa>` | Override de modelo por agente. Ex: `security-auditor:gemini-2.0-flash`. |
 | `--include-context-findings` | Permite achados fora das linhas alteradas usando o contexto completo dos arquivos modificados. |
+| `--include-codebase-context` | Inclui a codebase rastreada pelo Git como contexto para validar o diff. Tambem aceita `ALEX_INCLUDE_CODEBASE_CONTEXT=true`. Default: desligado. |
+| `--unsafe-disable-codebase-limits` | Remove limites de tamanho/quantidade do contexto de codebase. Tambem aceita `ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS=true`. Mantem filtros de seguranca. |
 
 > [!NOTE]
 > **Proteções de Segurança na CLI:**
@@ -311,6 +321,8 @@ Parâmetros e opções:
 > - Data Leakage Blocklist: `.pem`, `.key`, `.pfx`, `.sqlite`, `id_rsa`, `.npmrc`, etc.
 > - Limite de 1MB por arquivo (anti-OOM)
 > - Git diff limitado a 10MB com stream via `spawn` (anti-DoS)
+> - Contexto amplo de codebase limitado a 8MB, 500 arquivos e 512KB por arquivo, com sanitizacao de valores sensiveis por arquivo.
+> - `--unsafe-disable-codebase-limits` remove apenas os limites de tamanho/quantidade do contexto amplo; filtros de seguranca, binarios e arquivos ruidosos continuam ativos.
 
 ### API REST — `POST /v1/analyze`
 Para integração com CI/CD (GitHub Actions, GitLab CI).
@@ -389,7 +401,7 @@ O workflow consumidor permite acionar o A.L.E.X em PRs:
 - por comentário contendo `alex review` no PR ou em review comments.
 - por comentário com perfil de agentes, como `alex review all`, `alex review --agents all` ou `alex review --agents default,test-strategist --disable-agents docs-maintainer`.
 
-Configure o secret `GEMINI_API_KEY` no repositório. Opcionalmente, configure as variáveis `ALEX_MODEL`, `ALEX_AGENTS` e `ALEX_DISABLED_AGENTS` para trocar o modelo e o perfil de agentes padrão.
+Configure o secret `GEMINI_API_KEY` no repositório. Opcionalmente, configure as variáveis `ALEX_MODEL`, `ALEX_AGENTS`, `ALEX_DISABLED_AGENTS`, `ALEX_INCLUDE_CODEBASE_CONTEXT` e `ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS` para trocar o modelo, o perfil de agentes padrão e o volume de contexto usado no diff.
 
 Para falhas transitórias do provedor, o A.L.E.X aplica retry exponencial com jitter preservando o ciclo interno do ADK. Os padrões são `ALEX_AGENT_MAX_RETRIES=2` e `ALEX_AGENT_RETRY_BASE_MS=1000`. Para evitar retry storm, perfis com múltiplos agentes não reexecutam o pipeline inteiro por padrão; use `ALEX_ALLOW_MULTI_AGENT_PIPELINE_RETRY=true` apenas se aceitar esse custo.
 
@@ -402,6 +414,8 @@ alex ci --diff-file pr.diff --output-file alex-review.md --pr-number <PR>
 ```
 
 Use `--include-context-findings` no `alex ci` quando quiser permitir que o relatorio inclua problemas encontrados fora das linhas alteradas pelo diff.
+Use `ALEX_INCLUDE_CODEBASE_CONTEXT=true` no workflow, ou `alex ci --include-codebase-context`, quando quiser enviar a codebase rastreada pelo Git como contexto adicional. Essa opcao fica desligada por padrao e aumenta custo/latencia.
+Use `ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS=true` ou `--unsafe-disable-codebase-limits` apenas quando aceitar risco de custo, memoria e limite de contexto do modelo.
 
 Comentários `alex review` só executam para usuários com permissão `write`, `maintain` ou `admin`, evitando consumo indevido da chave em repositórios públicos.
 

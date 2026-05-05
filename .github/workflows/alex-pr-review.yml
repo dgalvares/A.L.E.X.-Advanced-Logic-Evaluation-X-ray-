@@ -169,9 +169,20 @@ jobs:
           ALEX_MODEL: ${{ vars.ALEX_MODEL || 'gemini-2.5-pro' }}
           ALEX_AGENTS: ${{ steps.agent-profile.outputs.agents }}
           ALEX_DISABLED_AGENTS: ${{ steps.agent-profile.outputs.disabled-agents }}
+          ALEX_INCLUDE_CODEBASE_CONTEXT: ${{ vars.ALEX_INCLUDE_CODEBASE_CONTEXT || 'false' }}
+          ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS: ${{ vars.ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS || 'false' }}
           REPORT_PATH: ${{ runner.temp }}/alex-review.md
         working-directory: pr-target
         run: |
+          CODEBASE_CONTEXT_FLAG=""
+          case "${ALEX_INCLUDE_CODEBASE_CONTEXT,,}" in
+            1|true|yes|on) CODEBASE_CONTEXT_FLAG="--include-codebase-context" ;;
+          esac
+          CODEBASE_LIMITS_FLAG=""
+          case "${ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS,,}" in
+            1|true|yes|on) CODEBASE_LIMITS_FLAG="--unsafe-disable-codebase-limits" ;;
+          esac
+
           node ../alex-tool/dist/cli.js ci \
             --diff-file pr.diff \
             --output-file "$REPORT_PATH" \
@@ -180,7 +191,9 @@ jobs:
             --pr-number "${{ steps.pr.outputs.number }}" \
             --fail-on-fail \
             --agents "$ALEX_AGENTS" \
-            --disable-agents "$ALEX_DISABLED_AGENTS"
+            --disable-agents "$ALEX_DISABLED_AGENTS" \
+            $CODEBASE_CONTEXT_FLAG \
+            $CODEBASE_LIMITS_FLAG
 
       - name: Comment review on PR
         if: always() && steps.permission.outputs.allowed == 'true'

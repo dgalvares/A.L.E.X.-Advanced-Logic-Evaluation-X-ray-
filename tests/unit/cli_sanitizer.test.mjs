@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeDiff } from '../../dist/utils/diff_sanitizer.js';
+import { sanitizeDiff, sanitizeSourceContent } from '../../dist/utils/diff_sanitizer.js';
 import { isBlockedSensitivePath } from '../../dist/utils/sensitive_paths.js';
 
 test('isBlockedSensitivePath is case-insensitive for sensitive basenames', () => {
@@ -37,4 +37,19 @@ test('sanitizeDiff redacts likely secret values in regular files', () => {
 
   assert.match(sanitized, /\+\[ALEX REDACTED\] possible secret value/);
   assert.doesNotMatch(sanitized, /abc123/);
+});
+
+test('sanitizeSourceContent redacts secrets outside git diff formatting', () => {
+  const source = [
+    'export const ok = true;',
+    'const token = "abc123";',
+    'password: super-secret',
+  ].join('\n');
+
+  const sanitized = sanitizeSourceContent(source);
+
+  assert.match(sanitized, /export const ok = true;/);
+  assert.doesNotMatch(sanitized, /abc123/);
+  assert.doesNotMatch(sanitized, /super-secret/);
+  assert.match(sanitized, /ALEX REDACTED/);
 });

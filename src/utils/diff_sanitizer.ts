@@ -1,6 +1,7 @@
 import { isBlockedSensitivePath } from './sensitive_paths.js';
 
 const SECRET_VALUE_PATTERN = /(api[_-]?key|token|secret|password|passwd|pwd|private[_-]?key|credential|authorization|bearer)\s*[:=]\s*['"]?[^'"\s]+/i;
+const SECRET_VALUE_PATTERN_GLOBAL = /(api[_-]?key|token|secret|password|passwd|pwd|private[_-]?key|credential|authorization|bearer)\s*[:=]\s*['"]?[^'"\s]+/gi;
 
 export function sanitizeDiff(diffContent: string): string {
   const sanitizedLines: string[] = [];
@@ -54,4 +55,8 @@ function sanitizeDiffLine(line: string): string {
   return SECRET_VALUE_PATTERN.test(line)
     ? `${line[0]}[ALEX REDACTED] possible secret value`
     : line;
+}
+
+export function sanitizeSourceContent(content: string): string {
+  return content.replace(SECRET_VALUE_PATTERN_GLOBAL, '[ALEX REDACTED] possible secret value');
 }

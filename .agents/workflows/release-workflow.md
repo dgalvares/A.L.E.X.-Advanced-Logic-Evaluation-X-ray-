@@ -1,3 +1,7 @@
+---
+description: Este workflow deve ser usado no Antigravity para preparar, publicar e validar releases do pacote `@dgalvarestec/alex`.
+---
+
 # A.L.E.X Release Workflow
 
 Este workflow deve ser usado no Antigravity para preparar, publicar e validar releases do pacote `@dgalvarestec/alex`.

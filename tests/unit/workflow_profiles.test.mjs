@@ -27,7 +27,13 @@ test('GitHub workflows pass dynamic agent profile variables to alex ci', () => {
     assert.ok(runStep, `${workflowPath} should run alex ci`);
     assert.equal(runStep.env.ALEX_AGENTS, "${{ steps.agent-profile.outputs.agents }}");
     assert.equal(runStep.env.ALEX_DISABLED_AGENTS, "${{ steps.agent-profile.outputs.disabled-agents }}");
+    assert.equal(runStep.env.ALEX_INCLUDE_CODEBASE_CONTEXT, "${{ vars.ALEX_INCLUDE_CODEBASE_CONTEXT || 'false' }}");
+    assert.equal(runStep.env.ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS, "${{ vars.ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS || 'false' }}");
     assert.equal(runStep.env.REPORT_PATH, '${{ runner.temp }}/alex-review.md');
+    assert.match(runStep.run, /CODEBASE_CONTEXT_FLAG=""/);
+    assert.match(runStep.run, /CODEBASE_LIMITS_FLAG=""/);
+    assert.match(runStep.run, /--include-codebase-context/);
+    assert.match(runStep.run, /--unsafe-disable-codebase-limits/);
     assert.match(runStep.run, /--agents "\$ALEX_AGENTS"/);
     assert.match(runStep.run, /--disable-agents "\$ALEX_DISABLED_AGENTS"/);
     assert.match(runStep.run, /--fail-on-fail/);

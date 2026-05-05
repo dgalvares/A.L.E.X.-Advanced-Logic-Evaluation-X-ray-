@@ -41,6 +41,8 @@ test('review command exposes optional profile shortcut', async () => {
 
   assert.match(help, /review \[options\] \[profile\]/);
   assert.match(help, /--include-context-findings/);
+  assert.match(help, /--include-codebase-context/);
+  assert.match(help, /--unsafe-disable-codebase-limits/);
 });
 
 test('ci command exposes context findings option', async () => {
@@ -50,6 +52,8 @@ test('ci command exposes context findings option', async () => {
   });
 
   assert.match(help, /--include-context-findings/);
+  assert.match(help, /--include-codebase-context/);
+  assert.match(help, /--unsafe-disable-codebase-limits/);
 });
 
 test('resolveAgentIds expands all to every registered agent', () => {
