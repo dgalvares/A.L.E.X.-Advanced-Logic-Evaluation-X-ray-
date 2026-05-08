@@ -35,6 +35,7 @@ export const AnalysisPayloadSchema = z.object({
     stack: z.string().optional().describe('Stack tecnológica (ex: .net, react, node).'),
     project: z.string().optional().describe('Nome do projeto ou micro-serviço.'),
     model: z.string().optional().describe('Modelo LLM opcional para esta requisição.'),
+    preset: AgentProfileItemSchema.optional().describe('Preset de review. Ex: fast, security, quality, ops, docs, release.'),
     agents: z.array(AgentProfileItemSchema).max(MAX_AGENT_PROFILE_ITEMS).optional().describe('IDs de agentes habilitados para esta requisicao.'),
     disabledAgents: z.array(AgentProfileItemSchema).max(MAX_AGENT_PROFILE_ITEMS).optional().describe('IDs de agentes removidos do conjunto final para esta requisicao.'),
     analysisMode: AnalysisModeSchema.optional().describe('Controla se achados ficam restritos ao diff ou podem usar o arquivo/contexto completo como alvo.'),

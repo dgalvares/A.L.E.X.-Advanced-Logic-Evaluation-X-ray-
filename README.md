@@ -205,6 +205,7 @@ Parâmetros e opções:
 |---|---|
 | `[profile]` | Perfil opcional de agentes. Aceita `default`, `all` ou lista separada por vírgula/espaço. Ex: `alex review all`. |
 | `-m, --model <modelo>` | Modelo LLM da análise. Se omitido, usa `ALEX_MODEL`, configuração persistente ou fallback. |
+| `--preset <preset>` | Preset semantico de review. Aceita `fast`, `security`, `quality`, `ops`, `docs` e `release`. |
 | `--agents <lista>` | Agentes habilitados. Ex: `default,test-strategist`. Tem precedência sobre `[profile]`. |
 | `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `sre-agent`. |
 | `--agent-models <mapa>` | Override de modelo por agente. Ex: `security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro`. |
@@ -241,6 +242,7 @@ Parâmetros e opções:
 |---|---|
 | `<arquivo>` | Caminho do arquivo a analisar. Deve existir dentro do workspace, ser arquivo regular e ter até 1MB. |
 | `-m, --model <modelo>` | Modelo LLM da análise. Se omitido, usa `ALEX_MODEL`, configuração persistente ou fallback. |
+| `--preset <preset>` | Preset semantico de review. Ex: `quality`, `docs`, `release`. |
 | `--agents <lista>` | Agentes habilitados. Ex: `default,error-handling-specialist`. |
 | `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `business-proxy`. |
 | `--agent-models <mapa>` | Override de modelo por agente. Ex: `clean-coder:gemini-2.0-flash`. |
@@ -251,6 +253,8 @@ Por padrão, `default` mantém o conselho atual. Agentes adicionais podem ser ha
 
 ```bash
 alex review --agents default,test-strategist,error-handling-specialist
+alex review --preset security
+alex review release
 alex review --agents all
 alex review all
 alex ci --diff-file pr.diff --agents default,docs-maintainer --disable-agents sre-agent
@@ -261,6 +265,22 @@ alex config disable-agent docs-maintainer
 
 Use `all` para rodar todos os agentes de análise registrados. Agentes opt-in disponíveis: `error-handling-specialist`, `test-strategist`, `observability-engineer`, `docs-maintainer` e `scalability-architect`.
 Agentes revisores não são configuráveis pelo usuário: eles entram automaticamente quando suas dependências existem. `security-reviewer` roda quando `sre-agent` e `clean-coder` estão ativos; `performance-reviewer` roda quando `security-auditor` e `clean-coder` estão ativos.
+
+### Review Presets
+
+Presets são atalhos semanticos para perfis de agentes. `--agents` continua tendo precedência quando você quiser controlar a lista manualmente.
+
+| Preset | Agentes |
+|---|---|
+| `default` | `security-auditor`, `clean-coder`, `sre-agent`, `business-proxy` |
+| `fast` | `clean-coder`, `security-auditor` |
+| `security` | `security-auditor`, `error-handling-specialist`, `sre-agent`, `clean-coder` |
+| `quality` | `clean-coder`, `test-strategist`, `error-handling-specialist` |
+| `ops` | `sre-agent`, `observability-engineer`, `scalability-architect`, `error-handling-specialist`, `security-auditor` |
+| `docs` | `docs-maintainer`, `business-proxy` |
+| `release` | `all` |
+
+Aliases: `quick` -> `fast`, `prod` -> `ops`, `full`/`all` -> `release`.
 
 | Agente de análise | Perfil | Foco |
 |---|---|---|
@@ -286,6 +306,8 @@ Gerencia a configuração persistente em `~/.alex/config.json`. Variáveis de am
 |---|---|
 | `alex config set-key` | Salva `GEMINI_API_KEY` usando entrada oculta, sem gravar a chave no histórico do shell. |
 | `alex config set-model <model>` | Define o modelo padrão persistente do CLI. |
+| `alex config set-preset <preset>` | Define o preset persistente. Ex: `security`. |
+| `alex config clear-preset` | Remove o preset persistente. |
 | `alex config set-agents <agents>` | Define o perfil persistente de agentes. Ex: `default,observability-engineer`. |
 | `alex config disable-agent <agents>` | Define agentes persistentes a remover do perfil resolvido. Ex: `docs-maintainer`. |
 | `alex config show` | Mostra a configuração ativa sem exibir segredos. |
@@ -308,6 +330,7 @@ Parâmetros e opções:
 | `--pr-number <numero>` | Número do PR usado para enriquecer o título do relatório. |
 | `-m, --model <modelo>` | Modelo LLM da análise. Se omitido, usa `ALEX_MODEL`, configuração persistente ou fallback. |
 | `--fail-on-fail` | Retorna exit code `1` quando o veredito final for `FAIL`. |
+| `--preset <preset>` | Preset semantico de review. Ex: `security`, `ops`, `release`. |
 | `--agents <lista>` | Agentes habilitados. Ex: `default,docs-maintainer`. |
 | `--disable-agents <lista>` | Remove agentes do conjunto resolvido. Ex: `sre-agent`. |
 | `--agent-models <mapa>` | Override de modelo por agente. Ex: `security-auditor:gemini-2.0-flash`. |
@@ -347,7 +370,7 @@ Content-Type: application/json
   "metadata": {
     "stack": ".net",
     "project": "MeuProjeto",
-    "agents": ["default", "test-strategist"],
+    "preset": "quality",
     "disabledAgents": ["docs-maintainer"],
     "analysisMode": "DIFF_WITH_CONTEXT"
   },
@@ -401,7 +424,7 @@ O workflow consumidor permite acionar o A.L.E.X em PRs:
 - por comentário contendo `alex review` no PR ou em review comments.
 - por comentário com perfil de agentes, como `alex review all`, `alex review --agents all` ou `alex review --agents default,test-strategist --disable-agents docs-maintainer`.
 
-Configure o secret `GEMINI_API_KEY` no repositório. Opcionalmente, configure as variáveis `ALEX_MODEL`, `ALEX_AGENTS`, `ALEX_DISABLED_AGENTS`, `ALEX_INCLUDE_CODEBASE_CONTEXT` e `ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS` para trocar o modelo, o perfil de agentes padrão e o volume de contexto usado no diff.
+Configure o secret `GEMINI_API_KEY` no repositório. Opcionalmente, configure as variáveis `ALEX_MODEL`, `ALEX_PRESET`, `ALEX_AGENTS`, `ALEX_DISABLED_AGENTS`, `ALEX_INCLUDE_CODEBASE_CONTEXT` e `ALEX_UNSAFE_DISABLE_CODEBASE_LIMITS` para trocar o modelo, o preset/perfil de agentes padrão e o volume de contexto usado no diff.
 
 Para falhas transitórias do provedor, o A.L.E.X aplica retry exponencial com jitter preservando o ciclo interno do ADK. Os padrões são `ALEX_AGENT_MAX_RETRIES=2` e `ALEX_AGENT_RETRY_BASE_MS=1000`. Para evitar retry storm, perfis com múltiplos agentes não reexecutam o pipeline inteiro por padrão; use `ALEX_ALLOW_MULTI_AGENT_PIPELINE_RETRY=true` apenas se aceitar esse custo.
 

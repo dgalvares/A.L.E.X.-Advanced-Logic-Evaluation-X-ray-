@@ -40,6 +40,7 @@ test('review command exposes optional profile shortcut', async () => {
   });
 
   assert.match(help, /review \[options\] \[profile\]/);
+  assert.match(help, /--preset/);
   assert.match(help, /--include-context-findings/);
   assert.match(help, /--include-codebase-context/);
   assert.match(help, /--unsafe-disable-codebase-limits/);
@@ -52,6 +53,7 @@ test('ci command exposes context findings option', async () => {
   });
 
   assert.match(help, /--include-context-findings/);
+  assert.match(help, /--preset/);
   assert.match(help, /--include-codebase-context/);
   assert.match(help, /--unsafe-disable-codebase-limits/);
 });

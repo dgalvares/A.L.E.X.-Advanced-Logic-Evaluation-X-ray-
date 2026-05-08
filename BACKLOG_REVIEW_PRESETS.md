@@ -2,6 +2,17 @@
 
 Este backlog formaliza a camada de presets do A.L.E.X: setups nomeados que combinam agentes e modelos recomendados de acordo com o objetivo da analise.
 
+## Status
+
+MVP concluido. Foram entregues:
+
+- catalogo local de presets e aliases;
+- `--preset` em `review`, `analyze` e `ci`;
+- `alex config set-preset`, `alex config clear-preset` e exibicao em `config show`;
+- `metadata.preset` na API REST;
+- suporte a `ALEX_PRESET` nos workflows de GitHub Actions;
+- testes unitarios e documentacao no README.
+
 ## Objetivo
 
 Reduzir atrito na escolha de agentes sem remover o controle avancado ja existente.

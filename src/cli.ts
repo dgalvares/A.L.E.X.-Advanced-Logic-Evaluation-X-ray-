@@ -11,13 +11,15 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { extractAndParseJSON } from './utils/parser.js';
 import { AnalysisPayload, FinalReport, FinalReportSchema } from './schemas/contracts.js';
-import { applyStoredConfigToEnv, getConfigPath, getDefaultModel, getGeminiApiKey, readUserConfig, updateUserConfig } from './config.js';
+import { applyStoredConfigToEnv, getConfigPath, getDefaultModel, getGeminiApiKey, readUserConfig, updateUserConfig, writeUserConfig } from './config.js';
 import { extractCodeMetadata } from './tools/diff_tools.js';
 import { sanitizeDiff, sanitizeSourceContent } from './utils/diff_sanitizer.js';
 import { isBlockedSensitivePath } from './utils/sensitive_paths.js';
 import { formatReportMarkdown } from './utils/report_formatter.js';
 import { AgentModelMap, resolveAgentIds, resolveAgentModels, agentIdToEnvKey } from './agents/agent_parser.js';
 import { AgentId } from './agents/catalog.js';
+import { getReviewPreset } from './agents/presets.js';
+import { resolveAgentProfile, resolveReviewProfileShortcut } from './agents/profile_resolver.js';
 import { LlmResultParseError } from './errors.js';
 import { resolveAnalysisMode, resolveRuntimeModel, withResolvedAnalysisMode } from './runtime.js';
 import { getCodebaseContext, getGitTopLevel } from './tools/codebase_context.js';
@@ -423,15 +425,20 @@ async function runAnalysis(
  * Resolve o conjunto final de agentes com a preced├¬ncia correta: CLI > env vars.
  * Erros de valida├º├úo (ID inv├ílido, council vazio) s├úo relan├ºados para o chamador.
  */
-function resolveAgents(cliAgents?: string, cliDisabled?: string): AgentId[] {
-  const agents = cliAgents !== undefined ? cliAgents : process.env.ALEX_AGENTS;
-  const disabled = cliDisabled !== undefined ? cliDisabled : process.env.ALEX_DISABLED_AGENTS;
-  return resolveAgentIds({ agents, disabledAgents: disabled });
+function resolveAgents(cliAgents?: string, cliDisabled?: string, cliPreset?: string): AgentId[] {
+  return resolveAgentProfile({
+    agents: cliAgents,
+    disabledAgents: cliDisabled,
+    preset: cliPreset,
+    envAgents: process.env.ALEX_AGENTS,
+    envDisabledAgents: process.env.ALEX_DISABLED_AGENTS,
+    envPreset: process.env.ALEX_PRESET,
+  }).enabledAgents;
 }
 
-function resolveAgentsOrExit(cliAgents?: string, cliDisabled?: string): AgentId[] {
+function resolveAgentsOrExit(cliAgents?: string, cliDisabled?: string, cliPreset?: string): AgentId[] {
   try {
-    return resolveAgents(cliAgents, cliDisabled);
+    return resolveAgents(cliAgents, cliDisabled, cliPreset);
   } catch (error: unknown) {
     console.error(pc.red(error instanceof Error ? error.message : 'Selecao de agentes invalida.'));
     process.exit(1);
@@ -643,6 +650,30 @@ configCommand
   });
 
 configCommand
+  .command('set-preset <preset>')
+  .description('Define o preset persistente de review. Ex: security, fast, release.')
+  .action((preset) => {
+    try {
+      getReviewPreset(preset);
+    } catch (error: unknown) {
+      console.error(pc.red(error instanceof Error ? error.message : 'Preset invalido.'));
+      process.exit(1);
+    }
+
+    updateUserConfig({ preset });
+    console.log(pc.green(`Preset salvo: ${preset}`));
+  });
+
+configCommand
+  .command('clear-preset')
+  .description('Remove o preset persistente de review.')
+  .action(() => {
+    const { preset: _preset, ...nextConfig } = readUserConfig();
+    writeUserConfig(nextConfig);
+    console.log(pc.green('Preset persistente removido.'));
+  });
+
+configCommand
   .command('show')
   .description('Mostra a configura├º├úo ativa sem exibir segredos.')
   .action(() => {
@@ -651,10 +682,12 @@ configCommand
     const hasKey = Boolean(getGeminiApiKey());
     const keySource = process.env.GEMINI_API_KEY ? 'env' : (userConfig.geminiApiKey ? 'user-config' : 'missing');
     const modelSource = process.env.ALEX_MODEL ? 'env' : (userConfig.model ? 'user-config' : 'fallback');
+    const presetSource = process.env.ALEX_PRESET ? 'env' : (userConfig.preset ? 'user-config' : 'none');
 
     console.log(`Config path: ${getConfigPath()}`);
     console.log(`GEMINI_API_KEY: ${hasKey ? `configured (${keySource})` : 'missing'}`);
     console.log(`ALEX_MODEL: ${activeModel} (${modelSource})`);
+    console.log(`ALEX_PRESET: ${process.env.ALEX_PRESET || userConfig.preset || '(none)'} (${presetSource})`);
     console.log(`ALEX_AGENTS: ${process.env.ALEX_AGENTS || userConfig.agents || 'default'}`);
     console.log(`ALEX_DISABLED_AGENTS: ${process.env.ALEX_DISABLED_AGENTS || userConfig.disabledAgents || '(none)'}`);
 
@@ -680,6 +713,7 @@ program
   .command('review [profile]')
   .description('Analisa as modificações locais (git diff) usando o conselho de especialistas.')
   .option('-m, --model <modelo>', 'Modelo LLM para utilizar na análise', defaultModel)
+  .option('--preset <preset>', 'Preset de review. Ex: fast, security, quality, ops, docs, release.')
   .option('--agents <lista>', 'Agentes habilitados (vírgula). Ex: security-auditor,clean-coder. Usa env ALEX_AGENTS se omitido.')
   .option('--disable-agents <lista>', 'Agentes a remover do conjunto. Ex: sre-agent. Usa env ALEX_DISABLED_AGENTS se omitido.')
   .option('--agent-models <mapa>', 'Override de modelo por agente. Ex: "security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro".')
@@ -690,7 +724,8 @@ program
     ensureGeminiApiKey();
     console.log(pc.cyan(pc.bold('\n🛡️ A.L.E.X Code Review Iniciado\n')));
 
-    const enabledAgents = resolveAgentsOrExit(options.agents ?? profile, options.disableAgents);
+    const profileSelection = resolveReviewProfileShortcut(profile, options);
+    const enabledAgents = resolveAgentsOrExit(profileSelection.agents, options.disableAgents, profileSelection.preset);
     const agentModels = resolveAgentModelsOrExit(options.agentModels);
 
     const spinner = ora('Capturando git diff local...').start();
@@ -750,6 +785,7 @@ program
   .command('analyze <caminho>')
   .description('Analisa um arquivo de código completo estruturalmente.')
   .option('-m, --model <modelo>', 'Modelo LLM para utilizar na análise', defaultModel)
+  .option('--preset <preset>', 'Preset de review. Ex: fast, security, quality, ops, docs, release.')
   .option('--agents <lista>', 'Agentes habilitados (vírgula). Ex: security-auditor,clean-coder. Usa env ALEX_AGENTS se omitido.')
   .option('--disable-agents <lista>', 'Agentes a remover do conjunto. Ex: sre-agent. Usa env ALEX_DISABLED_AGENTS se omitido.')
   .option('--agent-models <mapa>', 'Override de modelo por agente. Ex: "security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro".')
@@ -757,7 +793,7 @@ program
     ensureGeminiApiKey();
     console.log(pc.cyan(pc.bold('\n🛡️ A.L.E.X Code Analysis Iniciado\n')));
 
-    const enabledAgents = resolveAgentsOrExit(options.agents, options.disableAgents);
+    const enabledAgents = resolveAgentsOrExit(options.agents, options.disableAgents, options.preset);
     const agentModels = resolveAgentModelsOrExit(options.agentModels);
 
     const targetPath = path.resolve(process.cwd(), caminho);
@@ -851,6 +887,7 @@ program
   .option('--pr-number <numero>', 'Numero do PR para enriquecer o titulo.')
   .option('-m, --model <modelo>', 'Modelo LLM para utilizar na analise', defaultModel)
   .option('--fail-on-fail', 'Retorna exit code 1 quando o veredito for FAIL.')
+  .option('--preset <preset>', 'Preset de review. Ex: fast, security, quality, ops, docs, release.')
   .option('--agents <lista>', 'Agentes habilitados (vírgula). Ex: security-auditor,clean-coder. Usa env ALEX_AGENTS se omitido.')
   .option('--disable-agents <lista>', 'Agentes a remover do conjunto. Ex: docs-maintainer. Usa env ALEX_DISABLED_AGENTS se omitido.')
   .option('--agent-models <mapa>', 'Override de modelo por agente. Ex: "security-auditor:gemini-2.0-flash,architect-consolidator:gemini-2.5-pro".')
@@ -861,7 +898,7 @@ program
     ensureGeminiApiKey();
     const modelToUse = resolveRuntimeModel({ explicitModel: options.model || defaultModel });
 
-    const enabledAgents = resolveAgentsOrExit(options.agents, options.disableAgents);
+    const enabledAgents = resolveAgentsOrExit(options.agents, options.disableAgents, options.preset);
     const agentModels = resolveAgentModelsOrExit(options.agentModels);
 
     try {

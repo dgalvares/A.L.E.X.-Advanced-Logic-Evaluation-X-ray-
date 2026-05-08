@@ -10,6 +10,7 @@ const UserConfigSchema = z.object({
   model: z.string().optional(),
   agents: z.string().optional(),
   disabledAgents: z.string().optional(),
+  preset: z.string().optional(),
 });
 
 export type AlexUserConfig = {
@@ -17,6 +18,7 @@ export type AlexUserConfig = {
   model?: string;
   agents?: string;
   disabledAgents?: string;
+  preset?: string;
 };
 
 let cachedUserConfig: AlexUserConfig | undefined;
@@ -136,5 +138,8 @@ export function applyStoredConfigToEnv(): void {
   }
   if (process.env.ALEX_DISABLED_AGENTS === undefined && config.disabledAgents) {
     process.env.ALEX_DISABLED_AGENTS = config.disabledAgents;
+  }
+  if (process.env.ALEX_PRESET === undefined && config.preset) {
+    process.env.ALEX_PRESET = config.preset;
   }
 }

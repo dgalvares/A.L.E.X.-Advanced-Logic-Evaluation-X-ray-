@@ -7,8 +7,8 @@ import { createHash } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { extractAndParseJSON } from './utils/parser.js';
 import { AnalysisPayloadSchema, FinalReportSchema } from './schemas/contracts.js';
-import { resolveAgentIds } from './agents/agent_parser.js';
 import { AgentId } from './agents/catalog.js';
+import { resolveAgentProfile } from './agents/profile_resolver.js';
 import { LlmResultParseError } from './errors.js';
 import { getPayloadAgentModels, resolveAnalysisMode, resolveRuntimeModel, withResolvedAnalysisMode } from './runtime.js';
 
@@ -99,12 +99,16 @@ app.post('/v1/analyze', apiLimiter, authMiddleware, jsonParser, async (req, res)
   const { streamId, metadata, diff, sourceCode } = validation.data;
   const effectiveStreamId = streamId || requestStreamId;
   let enabledAgents: AgentId[];
+  let resolvedPresetId: string | undefined;
 
   try {
-    enabledAgents = resolveAgentIds({
+    const resolvedProfile = resolveAgentProfile({
       agents: metadata?.agents?.join(','),
       disabledAgents: metadata?.disabledAgents?.join(','),
+      preset: metadata?.preset,
     });
+    enabledAgents = resolvedProfile.enabledAgents;
+    resolvedPresetId = resolvedProfile.preset?.id;
   } catch (error: unknown) {
     console.warn('[API Invalid Agent Selection]', {
       streamId: effectiveStreamId,
@@ -115,6 +119,13 @@ app.post('/v1/analyze', apiLimiter, authMiddleware, jsonParser, async (req, res)
       message: error instanceof Error ? error.message : "Selecao de agentes invalida.",
     });
   }
+
+  console.log('[API Agent Profile Resolved]', {
+    streamId: effectiveStreamId,
+    preset: resolvedPresetId || metadata?.preset || '(none)',
+    agents: enabledAgents,
+    disabledAgents: metadata?.disabledAgents || [],
+  });
 
   const request = {
     streamId: effectiveStreamId,

@@ -11,6 +11,7 @@ test('user config stores API key and model under the user home', async () => {
   const originalModel = process.env.ALEX_MODEL;
   const originalAgents = process.env.ALEX_AGENTS;
   const originalDisabledAgents = process.env.ALEX_DISABLED_AGENTS;
+  const originalPreset = process.env.ALEX_PRESET;
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'alex-home-'));
 
   try {
@@ -18,6 +19,7 @@ test('user config stores API key and model under the user home', async () => {
     delete process.env.ALEX_MODEL;
     delete process.env.ALEX_AGENTS;
     delete process.env.ALEX_DISABLED_AGENTS;
+    delete process.env.ALEX_PRESET;
     process.env.USERPROFILE = tempHome;
     process.env.HOME = tempHome;
 
@@ -27,6 +29,7 @@ test('user config stores API key and model under the user home', async () => {
       model: 'gemini-test-model',
       agents: 'default,test-strategist',
       disabledAgents: 'docs-maintainer',
+      preset: 'security',
     });
 
     assert.equal(configModule.getGeminiApiKey(), 'test-key');
@@ -36,6 +39,7 @@ test('user config stores API key and model under the user home', async () => {
     configModule.applyStoredConfigToEnv();
     assert.equal(process.env.ALEX_AGENTS, 'default,test-strategist');
     assert.equal(process.env.ALEX_DISABLED_AGENTS, 'docs-maintainer');
+    assert.equal(process.env.ALEX_PRESET, 'security');
   } finally {
     if (originalHome === undefined) {
       delete process.env.USERPROFILE;
@@ -67,6 +71,11 @@ test('user config stores API key and model under the user home', async () => {
     } else {
       process.env.ALEX_DISABLED_AGENTS = originalDisabledAgents;
     }
+    if (originalPreset === undefined) {
+      delete process.env.ALEX_PRESET;
+    } else {
+      process.env.ALEX_PRESET = originalPreset;
+    }
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
 });
@@ -76,6 +85,7 @@ test('stored config does not override explicit empty agent env vars', async () =
   const originalPosixHome = process.env.HOME;
   const originalAgents = process.env.ALEX_AGENTS;
   const originalDisabledAgents = process.env.ALEX_DISABLED_AGENTS;
+  const originalPreset = process.env.ALEX_PRESET;
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'alex-home-'));
 
   try {
@@ -83,16 +93,19 @@ test('stored config does not override explicit empty agent env vars', async () =
     process.env.HOME = tempHome;
     process.env.ALEX_AGENTS = '';
     process.env.ALEX_DISABLED_AGENTS = '';
+    process.env.ALEX_PRESET = '';
 
     const configModule = await import(`../../dist/config.js?case=empty-${Date.now()}`);
     configModule.updateUserConfig({
       agents: 'all',
       disabledAgents: 'docs-maintainer',
+      preset: 'release',
     });
     configModule.applyStoredConfigToEnv();
 
     assert.equal(process.env.ALEX_AGENTS, '');
     assert.equal(process.env.ALEX_DISABLED_AGENTS, '');
+    assert.equal(process.env.ALEX_PRESET, '');
   } finally {
     if (originalHome === undefined) {
       delete process.env.USERPROFILE;
@@ -113,6 +126,11 @@ test('stored config does not override explicit empty agent env vars', async () =
       delete process.env.ALEX_DISABLED_AGENTS;
     } else {
       process.env.ALEX_DISABLED_AGENTS = originalDisabledAgents;
+    }
+    if (originalPreset === undefined) {
+      delete process.env.ALEX_PRESET;
+    } else {
+      process.env.ALEX_PRESET = originalPreset;
     }
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
